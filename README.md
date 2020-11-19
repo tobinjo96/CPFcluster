@@ -3,7 +3,7 @@
 CPFcluster
 ========
 
-An implementation of the Component-wise Peak-Finding (CPF) clustering method, presented in ....
+An implementation of the Component-wise Peak-Finding (CPF) clustering method, presented in 'Clustering of Big Data with Mixed Features' by Tobin & Zhang (2020).
 
 Dependencies
 ------------

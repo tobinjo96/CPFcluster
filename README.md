@@ -1,66 +1,37 @@
-[![Build Status](https://github.com/dstein64/aghasher/workflows/build/badge.svg)](https://github.com/dstein64/aghasher/actions)
+# CPFcluster
 
-CPFcluster
-========
+CPFcluster is a Python library for implementing the Component-wise Peak Finding (CPF) method introduced in 'Scalable Clustering of Mixed Data using Nearest Neighbor Graphs and Density Peaks'. 
 
-An implementation of the Component-wise Peak-Finding (CPF) clustering method, presented in 'Clustering of Big Data with Mixed Features' by Tobin & Zhang (2020).
+## Set Up
 
-Dependencies
-------------
+Use the package manager [pip](https://pip.pypa.io/en/stable/) to install foobar.
 
-*CPFcluster* supports Python 3, with numpy, scipy, itertools, multiprocessing and aghasher. These should be linked with a BLAS implementation
-(e.g., OpenBLAS, ATLAS, Intel MKL). The package [aghasher](https://pypi.python.org/pypi/aghasher) is used to implement the k nearest neighbour graph approximation introduced in Zhang et. al. (2013). 
-
-Installation
-------------
-
-[CPFcluster](https://pypi.python.org/pypi/CPFcluster) is available on PyPI, the Python Package Index.
-
-```sh
-$ pip install CPFcluster
+```bash
+pip install CPFcluster
 ```
 
-How To Use
-----------
+## Run
 
-To use CPFcluster, first import the *CPFcluster* module.
+To run CPFcluster on the synthetic data included:
 
-    import CPFcluster
-    
-### Clustering a Dataset
+```bash
+python CPF_synthetic.py 
+```
 
-A CPFclustering is constructed using the *train* method, which returns an CPFclustering of a dataset.
+To run CPFcluster on the downloaded data sets, see the Dataset.md file in the ./data folder. The available data sets can be found there. They should be downloaded to the ./data folder. The below command will execute CPFcluster on the data sets. 
 
-    result = CPFcluster.CPFclustering.train(X, k, K, beta, reps, num_hashbits, blocksz, n_core)
+```bash
+python CPF_downloaded.py
+```
+## License
+[MIT](https://choosealicense.com/licenses/mit/)
 
-CPFclustering.train takes 8 arguments:
+## Contributing
+Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
 
-* **X** An *n-by-d* numpy.ndarray with training data. The rows correspond to *n* observations, and the columns
-  correspond to *d* dimensions.
-* **k** Number of nearest-neighbors used to create connected components from the dataset.
-* **K** Number of nearest-neighbors used to compute the local density of each instance.
-* **beta** (optional; defaults to 30) Number of clusters to be tested for each component in the center selection method. 
-* **reps** (optional; defaults to 50) Number of repetitions of the locality sensitive hashing method used in computing the k nearest-neighbor graphs. 
-* **num_hashbits** (optional; defaults to 12) Number of hashbits used in locality sensitive hashing method. 
-* **blocksz** (optional; defaults to 100) Size of the neighborhood on which brute force kNN is computed in locality sensitive hashing method. 
-* **n_core** (optional; defaults to 1) Number of processors to be used when computing nearest-neighbor graph. If set to 1, parallel processing does not take place. 
+Please make sure to update tests as appropriate.
 
+## Questions or Comments
+Please contact Joshua Tobin ([tobinjo@tcd.ie](mailto:tobinjo@tcd.ie)). 
 
-Tests
------
-
-
-CPFcluster
--------
-
-*CPFcluster* has an [MIT License](https://en.wikipedia.org/wiki/MIT_License).
-
-See [LICENSE](LICENSE).
-
-References
-----------
-Zhang, Yan-Ming, et al. “Fast kNN graph construction with locality sensitive hashing.“ Joint European Conference on Machine Learning and Knowledge Discovery in Databases. Springer, Berlin, Heidelberg, 2013.
-
-Liu, Wei, Jun Wang, Sanjiv Kumar, and Shih-Fu Chang. 2011. “Hashing with Graphs.” In Proceedings of the 28th
-International Conference on Machine Learning (ICML-11), edited by Lise Getoor and Tobias Scheffer, 1–8. ICML ’11. New
-York, NY, USA: ACM.
+Future additions to the repository will provide ways to pass arguments to CPF from the command line. 

@@ -4,7 +4,7 @@ CPFcluster is a Python library for implementing the Component-wise Peak Finding 
 
 ## Set Up
 
-Use the package manager [pip](https://pip.pypa.io/en/stable/) to install foobar.
+Use the package manager [pip](https://pip.pypa.io/en/stable/) to install CPFcluster.
 
 ```bash
 pip install CPFcluster

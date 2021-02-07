@@ -12,7 +12,7 @@ pip install CPFcluster
 
 ## Run
 
-To run CPFcluster on the synthetic data included:
+To run CPFcluster on the synthetic data included tst:
 
 ```bash
 python CPF_synthetic.py 

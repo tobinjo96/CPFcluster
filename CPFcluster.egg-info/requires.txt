@@ -1,5 +1,0 @@
-numpy
-scipy
-aghasher
-itertools
-multiprocessing

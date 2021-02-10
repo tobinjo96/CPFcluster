@@ -2,7 +2,7 @@
 
 CPFcluster is a Python library for implementing the Component-wise Peak Finding (CPF) method introduced in 'Scalable Clustering of Mixed Data using Nearest Neighbor Graphs and Density Peaks'. 
 ![problems](problems.png =350x)
-
+<img src="problems.png" alt="problems" width="200"/>
 ## Set Up
 
 Use the package manager [pip](https://pip.pypa.io/en/stable/) to install CPFcluster.

@@ -3,7 +3,7 @@ import scipy.sparse
 import scipy.linalg
 import scipy.io
 
-import aghasherutils as utils
+import CPFcluster.aghasherutils as utils
 
 
 class AnchorGraphHasher:

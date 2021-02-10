@@ -1,12 +1,13 @@
 import numpy as np
+import sys
 import aghasher
-import aghashercore
+import CPFcluster.aghashercore as aghashercore
 import scipy.sparse
 import math
 import multiprocessing as mp
 import itertools
-import utils
-#import utils
+import pandas as pd
+import CPFcluster.utils as utils
 import gc
 from tqdm import tqdm
 
@@ -441,27 +442,40 @@ class CPFclustering:
     return y
   
   @staticmethod 
-  def read_data(fpath, col_idx, metric = np.nan, header = False):
-    X = np.genfromtxt(fpath, dtype = str, delimiter = ",", skip_header = int(header))
-    if X.shape[1] != len(col_idx):
-      sys.exit("Error: length of col_idx must be the same as number of columns of CSV file. ")
+  def to_npy(inpath, outpath, header = False):
+    df = []
+    chunksize = 10 ** 6
+    for chunk in pd.read_csv(inpath, chunksize=chunksize):
+      df.append(chunk.values)    
     
-    if any([x not in [0, 1, 2] for x in col_idx]):
-      sys.exit("Error: col_idx entries must be in correct format. ")
+    X = np.zeros((chunksize*(len(df)-1) + df[len(df)-1].shape[0],df[0].shape[1]))
+    for i in range(len(df)):
+      X[(i*df[i-1].shape[0]):(i*df[0].shape[0] + df[i].shape[0])] = df[i]
     
-    del X
-    nums = [x for x in range(len(col_idx)) if col_idx[x] == 0 ]
-    cats = [x for x in range(len(col_idx)) if col_idx[x] == 1 ]
-    X_n = np.genfromtxt(fpath, dtype = float, delimiter = ",", skip_header = int(header))[:, nums]
+    np.save(X, outpath)
+  
+  @staticmethod
+  def prep_data(fpath, colidx, metric = 1):
+    X = np.load(fpath)
+    if X.shape[1] != len(colidx):
+      sys.exit("Error: length of colidx must be the same as number of columns of NPY array. ")
+    
+    if any([x not in [0, 1, 2] for x in colidx]):
+      sys.exit("Error: colidx entries must be in correct format. ")
+    
+    nums = [x for x in range(len(colidx)) if colidx[x] == 0 ]
+    cats = [x for x in range(len(colidx)) if colidx[x] == 1 ]
+    ys = [x for x in range(len(colidx)) if colidx[x] == 2]
+    X_n = X[:, nums]
     for col in range(len(nums)):
-      rows = (X_n[:,col] >= np.quantile(X_n[:,col], 0.01)) & (X_n[:,col] <= np.quantile(X_n[:,col], 0.99))
-      if np.std(X_n[rows, col]) != 0:
-        X_n[:, col] = (X_n[:, col] -np.mean(X_n[rows, col]))/np.std(X_n[rows, col])
+      rows = (X[:,nums[col]] >= np.quantile(X[:,nums[col]], 0.01)) & (X[:,nums[col]] <= np.quantile(X[:,nums[col]], 0.99))
+      if np.std(X[rows, nums[col]]) != 0:
+        X[:, nums[col]] = (X[:, nums[col]] -np.mean(X[rows, nums[col]]))/np.std(X[rows, nums[col]])
       else:
-        X_n[:, col] = (X_n[:, col] - np.mean(X_n[:, col]))/np.std(X_n[:, col])
+        X[:, nums[col]] = (X[:, nums[col]] - np.mean(X[:, nums[col]]))/np.std(X[:, nums[col]])
     
     rmcols = []
-    X_c = np.genfromtxt(fpath, dtype = str, delimiter = ",", skip_header = int(header))[:, cats]
+    X_c = X[:, cats]
     for col in range(len(cats)):
       vals, counts = np.unique(X_c[:, col], return_counts = True)
       if len(vals) == 1:
@@ -469,17 +483,20 @@ class CPFclustering:
     
     cats = [x for x in cats if x not in rmcols]
     del rmcols
-    X_c = np.genfromtxt(fpath, dtype = str, delimiter = ",", skip_header = int(header))[:, cats]
+    X_c = X[:, cats]
     w = [None]*len(cats)
     p = [0]*len(cats)
     l = [None]*len(cats)
     for col in range(len(cats)):
-      vals, counts = np.unique(X_c[:, col], return_counts = True)
+      vals, counts = np.unique(X[:, cats[col]], return_counts = True)
       l[col] = len(vals)
-      if metric is np.nan or 1:
+      if metric == 1:
+        w[col] = [1]*len(vals)
+      
+      if metric == 2:
         w[col] = counts/np.sum(counts)
       
-      if metric is 2:
+      if metric == 3:
         w[col] = np.log(counts/np.sum(counts))/(np.sum(np.log(counts/np.sum(counts))))
       
       for i in range(len(vals)):
@@ -502,13 +519,18 @@ class CPFclustering:
       else:
         X_enc = np.hstack((X_enc, one_hot))
     
-    X = np.empty(shape = (X_enc.shape[0], X_n.shape[1] + X_enc.shape[1]))
+    X_out = np.empty(shape = (X_enc.shape[0], len(nums)+ X_enc.shape[1]))
     nums_t = [len([j for j in range(len(nums)) if nums[j] < nums[i]]) + sum([l[col] for col in range(len(cats)) if cats[col] < nums[i]]) for i in range(len(nums))]
-    cats_t = [j for j in range(X.shape[1]) if j not in nums_t]
-    X[:, nums_t] = X_n
-    del X_n
-    X[:, cats_t] = X_enc
+    cats_t = [j for j in range(X_out.shape[1]) if j not in nums_t]
+    X_out[:, nums_t] = X[:, nums]
+    #del X
+    X_out[:, cats_t] = X_enc
     del X_enc
+    if len(ys) == 1:
+      X_out = np.hstack((X_out, X[:, ys]))
     
-    return X
-
+    return X_out
+  
+  
+  
+  

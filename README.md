@@ -39,4 +39,4 @@ Please make sure to update tests as appropriate.
 ## Questions or Comments
 Please contact Joshua Tobin ([tobinjo@tcd.ie](mailto:tobinjo@tcd.ie)). 
 
-![ChamData](ChamData.png) ![ChamOut](ChamOut.png) ![ChamComp](ChamComp.png)
+![ChamData](Cham_Data.png) ![ChamOut](Cham_Out.png) ![ChamComp](Cham_Comp.png)

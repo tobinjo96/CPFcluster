@@ -93,10 +93,13 @@ The result object further contains as before:
 * **memberships** The final cluster labelings. 
 
 
-
-Tests
------
-
+Experimentation
+-------
+To replicate the experiments in the original paper:
+```sh
+python3 download_data.py
+python3 run_downloaded.py
+```
 
 CPFcluster
 -------

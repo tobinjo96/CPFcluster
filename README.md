@@ -3,6 +3,10 @@ CPFcluster
 
 An implementation of the Component-wise Peak-Finding (CPF) clustering method, presented in 'Scalable and Adaptable Density-Based Clustering using Level Set and Mode-Seeking Methods'.
 
+<p align="center" width="100%">
+    <img width="60%" src="Grids.png">
+</p>
+
 Dependencies
 ------------
 

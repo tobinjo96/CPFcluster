@@ -1,42 +1,104 @@
-# CPFcluster
+CPFcluster
+========
 
-CPFcluster is a Python library for implementing the Component-wise Peak Finding (CPF) method introduced in 'Scalable Clustering of Mixed Data using Nearest Neighbor Graphs and Density Peaks'. 
+An implementation of the Component-wise Peak-Finding (CPF) clustering method, presented in 'Scalable and Adaptable Density-Based Clustering using Level Set and Mode-Seeking Methods'.
 
-<img src="problems.png" alt="problems" width="800"/>
-## Set Up
+Dependencies
+------------
 
-Use the package manager [pip](https://pip.pypa.io/en/stable/) to install CPFcluster.
+*CPFcluster* supports Python 3, with numpy, scipy, itertools, multiprocessing and scikit-learn. These should be linked with a BLAS implementation
+(e.g., OpenBLAS, ATLAS, Intel MKL). 
 
-```bash
-pip install CPFcluster
+Installation
+------------
+
+[CPFcluster](https://pypi.python.org/pypi/CPFcluster) is available on PyPI, the Python Package Index.
+
+```sh
+$ pip install CPFcluster
 ```
-To download the data sets, either use the links given in data/Datasets.md or, to download all data sets: 
 
-```bash
-sh download_data.sh
-```
-## Run
+How To Use
+----------
 
-To run CPFcluster on the downloaded data:
+To use CPFcluster, first import the *CPFcluster* module.
+```python
+    from CPFcluster import CPFcluster
+```    
+### Clustering a Dataset
 
-```bash
-sh bin/run_downloaded.sh
-```
-The above script will save cluster labels to a csv file in a new 'results' folder. Also included is a brief script to execute code on a synthetic numeric data set which demonstrates the 'train' function of the CPFclustering class. To execute:
+A CPFcluster object is constructed using the *fit* method, which returns a clustering of a dataset.
+```python
+    CPF = CPFcluster(k, rho, alpha, n_jobs, remove_duplicates, cutoff)
+    CPF.fit(X)
+```    
+CPFcluster takes 6 arguments:
 
-```bash 
-python bin.run_synthetic.py
-```
-All source code for the method is available from [pip](https://pip.pypa.io/en/stable/) or in the /src folder. 
-## License
-[MIT](https://choosealicense.com/licenses/mit/)
+* **k** Number of nearest-neighbors used to create connected components from the dataset and compute the density.
+* **rho** (Defaults to 0.4) Parameter used in threshold for center selection.
+* **alpha** (Defaults to 1) Optional parameter used in threshold of edge weights for center selection, not discussed in paper.
+* **n_jobs** (Defaults to 1) Number of cores for program to execute on. 
+* **remove_duplicates** (Defaults to False) Option to remove duplicate rows from data in advance of clustering. 
+* **cutoff** (Defaults to 1) Threshold for removing instances as outliers. Instances with fewer edges than the cutoff value are removed. 
 
-## Contributing
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+The CPFcluster object is then fit to a dataset:
+* **X** An *n-by-d* numpy.ndarray with training data. The rows correspond to *n* observations, and the columns
+  correspond to *d* dimensions.
 
-Please make sure to update tests as appropriate.
+The result object further contains:
+* **CCmat** An *n-by-n* sparse matrix representation of the *k*-NN graph.  
+* **components** A vector containing the index of the component to which each instance belongs. If the instance is an outlying point, the value will be NaN. 
+* **ps** A list of tuples containing the number of instances and the proportion of instances for which a point of higher density was not present in the nearest neighbours for each component.
+* **peaks** A vector containing the index of the peaks selected as cluster centers. 
+* **memberships** The final cluster labelings. 
 
-## Questions or Comments
-Please contact Joshua Tobin ([tobinjo@tcd.ie](mailto:tobinjo@tcd.ie)). 
 
-<img src="Cham_Data.png" alt="Cham_Data" width="300"/> <img src="Cham_Out.png" alt="Cham_Out" width="300"/> <img src="Cham_Comp.png" alt="Cham_Comp" width="300"/>
+CPFmatch for Multi-Image Matching
+----------
+
+CPFmatch is the modified version of CPF applicable for the multi-image matching problem. To use CPFmatch, first import the *CPFmatch* module.
+```python
+    from CPFcluster import CPFmatch
+```    
+### Clustering a Dataset
+
+A CPFmatch object is constructed using the *fit* method, which returns a clustering of a dataset.
+```python
+    match = CPFmatch(k, rho, alpha, n_jobs, remove_duplicates, cutoff)
+    match.fit(X, img_label)
+```    
+CPFmatch takes the same 6 arguments as CPFcluster:
+
+* **k** Number of nearest-neighbors used to create connected components from the dataset and compute the density.
+* **rho** (Defaults to 0.4) Parameter used in threshold for center selection.
+* **alpha** (Defaults to 1) Optional parameter used in threshold of edge weights for center selection, not discussed in paper.
+* **n_jobs** (Defaults to 1) Number of cores for program to execute on. 
+* **remove_duplicates** (Defaults to False) Option to remove duplicate rows from data in advance of clustering. 
+* **cutoff** (Defaults to 1) Threshold for removing instances as outliers. Instances with fewer edges than the cutoff value are removed. 
+
+The CPFmatch object is then fit to a dataset with the label of the images included also:
+* **X** An *n-by-d* numpy.ndarray with training data. The rows correspond to *n* observations, and the columns
+  correspond to *d* dimensions.
+* **img_label** An *n-by-1* numpy.ndarray with the image label for each feature. The rows correspond to *n* keypoints, and no two keypoints from the same image will be clustered together.
+
+The result object further contains as before:
+* **CCmat** An *n-by-n* sparse matrix representation of the *k*-NN graph.  
+* **components** A vector containing the index of the component to which each instance belongs. If the instance is an outlying point, the value will be NaN. 
+* **ps** A list of tuples containing the number of instances and the proportion of instances for which a point of higher density was not present in the nearest neighbours for each component.
+* **peaks** A vector containing the index of the peaks selected as cluster centers. 
+* **memberships** The final cluster labelings. 
+
+
+
+Tests
+-----
+
+
+CPFcluster
+-------
+
+*CPFcluster* has an [MIT License](https://en.wikipedia.org/wiki/MIT_License).
+
+See [LICENSE](LICENSE).
+
+

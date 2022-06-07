@@ -65,7 +65,7 @@ def get_density_dists_bb(X, k, components, knn_radius, n_jobs):
     cc_best_distance[rows] = distances[rows, cols]
     search_idx = list(np.setdiff1d(list(range(X[cc_idx, :].shape[0])), rows))
     ps = np.vstack((ps, [len(cc_idx), len(search_idx)/len(cc_idx)]))
-    for indx_chunk in utils.chunks(search_idx, 100):
+    for indx_chunk in chunks(search_idx, 100):
       search_radius = cc_knn_radius[indx_chunk]
       GT_radius =  cc_knn_radius < search_radius[:, np.newaxis] 
       if any(np.sum(GT_radius, axis = 1) == 0):
@@ -87,7 +87,7 @@ def get_density_dists_bb(X, k, components, knn_radius, n_jobs):
           distances = []
           i = 0
           while True:
-            distance_comp = pool.map(utils.density_broad_search_star, itertools.islice(GT_distances, N))
+            distance_comp = pool.map(density_broad_search_star, itertools.islice(GT_distances, N))
             if distance_comp:
               distances.append(distance_comp)
               i += 1
@@ -101,7 +101,7 @@ def get_density_dists_bb(X, k, components, knn_radius, n_jobs):
           pool.close()
           pool.terminate()
       else:
-          distances = list(map(utils.density_broad_search_star, list(GT_distances)))
+          distances = list(map(density_broad_search_star, list(GT_distances)))
           argmin_distance = [np.argmin(l) for l in distances]
       
       for i in range(GT_radius.shape[0]):

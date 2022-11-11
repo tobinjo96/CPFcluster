@@ -4,11 +4,11 @@ CPFcluster
 An implementation of the Component-wise Peak-Finding (CPF) clustering method, presented in 'A Theoretical Analysis of Density Peaks Clustering and the CPF Algorithm'.
 
 <p align="center" width="100%">
-    <img width="100%" src="CPF.png">
+    <img src="CPF.png">
 </p>
 
 <p align="center" width="100%">
-    <img width="100%" src="CPF_grid.pdf">
+    <img src="CPF_grid.png">
 </p>
 
 Dependencies

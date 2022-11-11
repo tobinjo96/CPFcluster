@@ -56,9 +56,7 @@ The CPFcluster object is then fit to a dataset:
 The result object further contains:
 * **CCmat** An *n-by-n* sparse matrix representation of the *k*-NN graph.  
 * **components** A vector containing the index of the component to which each instance belongs. If the instance is an outlying point, the value will be NaN. 
-* **ps** A list of tuples containing the number of instances and the proportion of instances for which a point of higher density was not present in the nearest neighbours for each component.
-* **peaks** A vector containing the index of the peaks selected as cluster centers. 
-* **memberships** The final cluster labelings. 
+* **labels_** The final cluster labelings. 
 
 Experimentation
 -------

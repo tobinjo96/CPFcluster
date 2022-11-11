@@ -8,7 +8,7 @@ An implementation of the Component-wise Peak-Finding (CPF) clustering method, pr
 </p>
 
 <p align="center" width="100%">
-    <img width="100%" src="CPF_grid.png">
+    <img width="100%" src="CPF_grid.pdf">
 </p>
 
 Dependencies

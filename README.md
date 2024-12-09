@@ -54,7 +54,7 @@ CPFcluster(
 ### Parameters
 
 - **`min_samples`** *(int)*:  
-Number of nearest-neighbors used to create connected components from the dataset and compute the density. This parameter is used in the `build_CCgraph` function to construct the k-NN graph and extract the component sets.  
+Number of nearest-neighbors used to create connected components from the dataset and compute the density. This parameter is used in the `build_CCgraph` function to construct the k-NN graph and extract the component sets. The default value is `5`, but a value `10` normally works well.  
  *Default*: `5`
 
 - **`rho`** *(float)*:  

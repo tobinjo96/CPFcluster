@@ -6,13 +6,6 @@ Illustration of the **CPFcluster** algorithm. **(1)** The mutual k-NN graph is c
 <img src="Plots\CPF_Illustration.png">
 
 
-[CPFcluster](https://pypi.python.org/pypi/CPFcluster) is available on PyPI, the Python Package Index.
-
-```sh
-$ pip install CPFcluster
-```
-
-
 If you used this package in your research, please cite it:
 ```latex
 @ARTICLE{10296014,

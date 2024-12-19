@@ -175,54 +175,61 @@ The script below demonstrates how to use CPFcluster with the Dermatology dataset
 
 ```python
 
-import os
 import numpy as np
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import adjusted_rand_score
+from sklearn.metrics import adjusted_rand_score, calinski_harabasz_score
 from core import CPFcluster
 
 
 # Define the main function to utilize Python's multiprocessing unit (in Windows OS).
 def main():
-    # Step 1: Load the Data
-    
-    # Load the Dermatology dataset
+    # Load the dataset
     Data = np.load("Data/dermatology.npy")
-    X = Data[:,:-1]  # Feature data
-    y = Data[:,-1]  # True labels (used here for evaluation, not clustering)
+    X = Data[:, :-1]  # Feature data
+    y = Data[:, -1]   # True labels (used here for evaluation, not clustering)
 
     # Normalize dataset for easier hyperparameter tuning
     X = StandardScaler().fit_transform(X)
-    
-    
-    # Step 2: Initialize CPFcluster
+
+    # Initialize CPFcluster with multiple rho and alpha values
     cpf = CPFcluster(
         min_samples=10,
-        rho=0.5,
-        alpha=1.0,
+        rho=[0.3, 0.5, 0.7],  # List of rho values for grid search
+        alpha=[0.8, 1.0, 1.2],  # List of alpha values for grid search
         merge=True,
         merge_threshold=0.6,
+        density_ratio_threshold=0.1,
         n_jobs=-1,
         plot_tsne=True,
         plot_pca=True,
         plot_umap=True
     )
-    
-    
-    # Step 3: Fit the Model
-    cpf.fit(X)
 
-    # access the cluster labels
-    print("Cluster labels:", cpf.labels)
-    
-    
-    # Step 4: Calculate Cluster Validity Indices
-    ari = adjusted_rand_score(y, cpf.labels)
-    print(f"Adjusted Rand Index (ARI): {ari:.2f}")
+    # Fit the model for a range of k-values
+    print("Fitting CPFcluster...")
+    cpf.fit(X, k_values=[5, 10, 15])
+
+    # Perform cross-validation to find the best (k, rho, alpha)
+    print("Performing cross-validation...")
+    best_params, best_score = cpf.cross_validate(X, validation_index=calinski_harabasz_score)
+    print(f"Best Parameters: {best_params}, Best Validation Score: {best_score:.2f}")
+
+    # Access the cluster labels for the best parameters
+    best_labels = cpf.clusterings[best_params]
+    print("Cluster labels for best parameters:", best_labels)
+
+    # Evaluate the clustering performance using Adjusted Rand Index (ARI)
+    ari = adjusted_rand_score(y, best_labels)
+    print(f"Adjusted Rand Index (ARI) for best parameters: {ari:.2f}")
+
+    # Plot results for the best parameters
+    print("Plotting results...")
+    cpf.plot_results(X, k=best_params[0], rho=best_params[1], alpha=best_params[2])
 
 
 if __name__ == "__main__":
     main()
+
 
 
 ```
@@ -304,13 +311,4 @@ The following two datasets are from Kaggle: **Fraud Detection Bank** and **Paris
 
 6. **Visualization Support**:  
    Includes built-in options for t-SNE, PCA, and UMAP visualizations to enhance interpretability of clustering results.
-
-
-## Limitations
-
-1. **Parameter Sensitivity**:  
-   The results can be sensitive to the choice of `rho`, `alpha`, and `cutoff`, which require careful tuning for optimal results.
-
-2. **Computational Overhead**:  
-   Computing the nearest-neighbor graph for very large datasets can demand significant memory and processing resources.
 

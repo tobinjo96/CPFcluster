@@ -9,6 +9,7 @@ from plotting import plot_clusters_tsne, plot_clusters_pca,plot_clusters_umap
 import warnings
 warnings.filterwarnings("ignore", message="invalid value encountered in cast")
 warnings.filterwarnings("ignore", message="invalid value encountered in scalar divide")
+from sklearn.metrics import calinski_harabasz_score
 
 def build_CCgraph(X, min_samples, cutoff, n_jobs, distance_metric='euclidean'):
     """
@@ -243,28 +244,14 @@ def get_y(CCmat, components, knn_radius, best_distance, big_brother, rho, alpha,
 class CPFcluster:
     """
     A class to perform CPF (Connected Components and Density-based) clustering.
-    Identifies clusters using connected components and density peaks.
-    
-    Attributes:
-        min_samples (int): Minimum number of neighbors to consider for connectivity.
-        rho (float): Density parameter controlling the radius cutoff.
-        alpha (float): Parameter for edge-cutoff in cluster detection.
-        n_jobs (int): Number of parallel jobs for computation.
-        remove_duplicates (bool): Whether to remove duplicate data points before clustering.
-        cutoff (int): Threshold for filtering out small connected components as outliers.
-        distance_metric (str): Metric to use for distance computation.
-        merge (bool): Whether to merge similar clusters based on a threshold.
-        merge_threshold (float): Distance threshold for merging clusters.
-        density_ratio_threshold (float): Density ratio threshold for merging clusters.
-        plot_umap (bool): Whether to plot UMAP visualization after clustering.
-        plot_pca (bool): Whether to plot PCA visualization after clustering.
     """
-    def __init__(self, min_samples=5, rho=0.4, alpha=1, n_jobs=1, remove_duplicates=False, cutoff=1,
+
+    def __init__(self, min_samples=5, rho=None, alpha=None, n_jobs=1, remove_duplicates=False, cutoff=1,
                  distance_metric='euclidean', merge=False, merge_threshold=0.5, density_ratio_threshold=0.1,
                  plot_umap=False, plot_pca=False, plot_tsne=False):
         self.min_samples = min_samples
-        self.rho = rho
-        self.alpha = alpha
+        self.rho = rho if rho is not None else [0.4]
+        self.alpha = alpha if alpha is not None else [1]
         self.n_jobs = n_jobs
         self.remove_duplicates = remove_duplicates
         self.cutoff = cutoff
@@ -275,83 +262,89 @@ class CPFcluster:
         self.plot_umap = plot_umap
         self.plot_pca = plot_pca
         self.plot_tsne = plot_tsne
+        self.clusterings = {}
 
-    def fit(self, X):
+    def fit(self, X, k_values=None):
         """
-        Fits the CPF clustering model to the input data.
-        
+        Fits the CPF clustering model to the input data and optimizes for multiple rho and alpha combinations.
+
         Parameters:
             X (np.ndarray): Input data of shape (n_samples, n_features).
-        
+            k_values (list): List of `k` values for constructing the neighborhood graph.
+
         Returns:
-            None: Updates class attributes with fitted cluster labels.
+            dict: A dictionary of clusterings with keys as (k, rho, alpha) tuples and values as cluster labels.
         """
         if not isinstance(X, np.ndarray):
             raise ValueError("X must be an n x d numpy array.")
         if self.remove_duplicates:
             X = np.unique(X, axis=0)
         n, d = X.shape
-        if self.min_samples > n:
-            raise ValueError("min_samples cannot be larger than n.")
 
-        self.components, self.CCmat, knn_radius = build_CCgraph(X, self.min_samples, self.cutoff, self.n_jobs)
-        best_distance, big_brother = get_density_dists_bb(X, self.min_samples, self.components, knn_radius, self.n_jobs)
-        self.labels = get_y(self.CCmat, self.components, knn_radius, best_distance, big_brother, self.rho, self.alpha, d)
+        if k_values is None:
+            k_values = [self.min_samples]  # Default to min_samples if no k_values are provided.
 
-        if self.merge:
-            centroids, densities = self.calculate_centroids_and_densities(X, self.labels)
-            self.labels = self.merge_clusters(X, centroids, densities, self.labels)
+        for k in k_values:
+            # Build the k-neighborhood graph
+            components, CCmat, knn_radius = build_CCgraph(X, k, self.cutoff, self.n_jobs, self.distance_metric)
+            self.CCmat = CCmat  
+            # Compute best distance and big brother for the current k
+            best_distance, big_brother = get_density_dists_bb(X, k, components, knn_radius, self.n_jobs)
 
-        self.fitted_ = True
-        if self.plot_umap:
-            plot_clusters_umap(X, self.labels)
-        if self.plot_pca:
-            plot_clusters_pca(X, self.labels)
-        if self.plot_tsne:
-            plot_clusters_tsne(X, self.labels)
+            # Cluster for each rho and alpha combination using the precomputed k-neighborhood graph
+            for rho_val, alpha_val in itertools.product(self.rho, self.alpha):
+                labels = get_y(CCmat, components, knn_radius, best_distance, big_brother, rho_val, alpha_val, d)
+
+                # Merge clusters if required
+                if self.merge:
+                    centroids, densities = self.calculate_centroids_and_densities(X, labels)
+                    labels = self.merge_clusters(X, centroids, densities, labels)
+
+                self.clusterings[(k, rho_val, alpha_val)] = labels
+
+        return self.clusterings
+
+
 
     def calculate_centroids_and_densities(self, X, labels):
         """
         Calculates the centroids and average densities of clusters.
-        
+
         Parameters:
             X (np.ndarray): Input data of shape (n_samples, n_features).
             labels (np.ndarray): Cluster labels for each sample.
-        
+
         Returns:
             centroids (np.ndarray): Centroids of each cluster.
             densities (np.ndarray): Average density of each cluster.
         """
-        # Filter out outliers from the labels
         valid_indices = labels != -1
         unique_labels = np.unique(labels[valid_indices])
         centroids = np.array([X[labels == k].mean(axis=0) for k in unique_labels])
         densities = np.array([np.mean(self.CCmat[labels == k, :][:, labels == k]) for k in unique_labels])
         return centroids, densities
 
-
     def merge_clusters(self, X, centroids, densities, labels):
         """
         Merges similar clusters based on distance and density ratio thresholds.
-        
+
         Parameters:
             X (np.ndarray): Input data of shape (n_samples, n_features).
             centroids (np.ndarray): Centroids of each cluster.
             densities (np.ndarray): Average density of each cluster.
             labels (np.ndarray): Cluster labels for each sample.
-        
+
         Returns:
             labels (np.ndarray): Updated cluster labels after merging.
         """
-        # Continue using valid_indices to filter labels
-        valid_indices = labels != -1 
+        valid_indices = labels != -1
         unique_labels = np.unique(labels[valid_indices])
         n_clusters = len(centroids)
         merge_map = {}
         for i in range(n_clusters):
             for j in range(i + 1, n_clusters):
                 if np.linalg.norm(centroids[i] - centroids[j]) < self.merge_threshold and \
-                abs(densities[i] - densities[j]) / (max(densities[i], densities[j]) )< self.density_ratio_threshold:
+                   abs(densities[i] - densities[j]) / max(densities[i], densities[j]) < self.density_ratio_threshold:
                     smaller = i if densities[i] < densities[j] else j
                     larger = j if smaller == i else i
                     merge_map[smaller] = larger
@@ -359,7 +352,54 @@ class CPFcluster:
                     densities[larger] = (densities[larger] + densities[smaller]) / 2
         for old, new in merge_map.items():
             labels[labels == old] = new
-        # Update labels while excluding outliers
-        new_labels = np.array([np.min(np.where(unique_labels == label)[0]) for label in labels if label != -1])
-        labels[valid_indices] = new_labels  
         return labels
+
+    def cross_validate(self, X, validation_index=calinski_harabasz_score):
+        """
+        Cross-validates the CPF clustering model using a specified validation index.
+
+        Parameters:
+            X (np.ndarray): Input data of shape (n_samples, n_features).
+            validation_index (callable): A function to compute the validation index (default: Calinski-Harabasz index).
+
+        Returns:
+            tuple: Optimal (k, rho, alpha) parameters and their corresponding validation score.
+        """
+        if not self.clusterings:
+            raise RuntimeError("You need to call `fit` before running cross-validation.")
+
+        best_score = -np.inf
+        best_params = None
+        for (k, rho, alpha), labels in self.clusterings.items():
+            if len(np.unique(labels)) > 1:
+                score = validation_index(X, labels)
+                if score > best_score:
+                    best_score = score
+                    best_params = (k, rho, alpha)
+        return best_params, best_score
+
+    def plot_results(self, X, k=None, rho=None, alpha=None):
+        """
+        Plots the clustering results for a specific combination of (k, rho, alpha).
+
+        Parameters:
+            X (np.ndarray): Input data of shape (n_samples, n_features).
+            k (int): Value of `k` for the neighborhood graph.
+            rho (float): Value of `rho` for clustering.
+            alpha (float): Value of `alpha` for clustering.
+
+        Returns:
+            None
+        """
+        if (k, rho, alpha) not in self.clusterings:
+            raise ValueError(f"No clustering result found for (k={k}, rho={rho}, alpha={alpha}).")
+
+        labels = self.clusterings[(k, rho, alpha)]
+        if self.plot_umap:
+            plot_clusters_umap(X, labels)
+        if self.plot_pca:
+            plot_clusters_pca(X, labels)
+        if self.plot_tsne:
+            plot_clusters_tsne(X, labels)
+
+

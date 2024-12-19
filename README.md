@@ -25,22 +25,22 @@ If you used this package in your research, please cite it:
 
 ## Class: CPFcluster
 
-**CPFcluster** is a scalable and flexible density-based clustering method that integrates the strengths of density-level set and mode-seeking approaches. This combination offers several advantages, including: (1) the ability to detect outliers, (2) effective identification of clusters with varying densities and overlapping regions, and (3) robustness against spurious density maxima. The `CPFcluster` class is designed to manage outliers, merge clusters seamlessly, and visualize clustering results using techniques like PCA, UMAP and t-SNE.
+**CPFcluster** is a scalable and flexible density-based clustering method that integrates the strengths of density-level set and mode-seeking approaches. This combination offers several advantages, including: (1) the ability to detect outliers, (2) effective identification of clusters with varying densities and overlapping regions, and (3) robustness against spurious density maxima. The `CPFcluster` class is designed to identify outliers, merge similar clusters, and visualize clustering results in 2D using techniques like PCA, UMAP and t-SNE.
 ```python
 CPFcluster(
-    min_samples=5,               # minimum number of neighbors to consider for connectivity #
-    rho=0.4,                     # parameter that controls the number of clusters for each component set #
-    alpha=1,                     # parameter for edge-cutoff in cluster detection #
-    n_jobs=1,                    # number of parallel jobs for computation #
-    cutoff=1,                    # threshold for filtering out small connected components as outliers #
-    merge=False,                 # whether to merge similar clusters based on thresholds #
-    merge_threshold=0.5,         # distance threshold for merging clusters #
-    density_ratio_threshold=0.1, # density ratio threshold for merging clusters #
-    distance_metric='euclidean', # metric for distance computation (e.g., 'euclidean', 'manhattan', 'cosine') #
-    remove_duplicates=False,     # whether to remove duplicate data points before clustering #
-    plot_umap=False,             # whether to plot UMAP visualization after clustering #
-    plot_pca=False,              # whether to plot PCA visualization after clustering #
-    plot_tsne=False              # whether to plot t-SNE visualization after clustering #
+    min_samples=5,                   # minimum number of neighbors to consider for connectivity #
+    rho=[0.3, 0.5, 0.7],             # parameter that controls the number of clusters for each component set #
+    alpha=[0.8, 1.0, 1.2],           # parameter for edge-cutoff in cluster detection #
+    n_jobs=1,                        # number of parallel jobs for computation #
+    cutoff=1,                        # threshold for filtering out small connected components as outliers #
+    merge=False,                     # whether to merge similar clusters based on thresholds #
+    merge_threshold=0.5,             # distance threshold for merging clusters #
+    density_ratio_threshold=0.1,     # density ratio threshold for merging clusters #
+    distance_metric='euclidean',     # metric for distance computation (e.g., 'euclidean', 'manhattan', 'cosine') #
+    remove_duplicates=False,         # whether to remove duplicate data points before clustering #
+    plot_umap=False,                 # whether to plot UMAP visualization after clustering #
+    plot_pca=False,                  # whether to plot PCA visualization after clustering #
+    plot_tsne=False                  # whether to plot t-SNE visualization after clustering #
 )
 ```
 
@@ -50,13 +50,13 @@ CPFcluster(
 Number of nearest-neighbors used to create connected components from the dataset and compute the density. This parameter is used in the `build_CCgraph` function to construct the k-NN graph and extract the component sets. The default value is `5`, but a value `10` normally works well.  
  *Default*: `5`
 
-- **`rho`** *(float)*:  
+- **`rho`** *(list)*:  
   The `rho` parameter in Definition 10 of the paper "A Theoretical Analysis of Density Peaks Clustering and the Component-Wise Peak-Finding Algorithm". Varying the parameter `rho` determines the number of clusters for each component set.  
-  *Default*: `0.4`
+  *Default*: `[0.3, 0.5, 0.7]`, a list of `rho` values for grid search  
 
-- **`alpha`** *(float)*:  
+- **`alpha`** *(list)*:  
   An optional parameter used to set the threshold for edge weights during center selection, not discussed in the paper.  
-  *Default*: `1`
+  *Default*: `[0.8, 1.0, 1.2]`, a list of `alpha` values for grid search
 
 - **`n_jobs`** *(int)*:  
   Number of parallel jobs for computation. Specify `n_jobs=-1` (and include the `__name__ == "__main__":` line in your script) to use all cores.  

@@ -170,7 +170,7 @@ Assigns cluster labels to data points based on density and connectivity properti
 
 ---
 
-## Code Example 1: Clustering with the Dermatology Dataset
+## Code Example: Clustering with the Dermatology Dataset
 The script below demonstrates how to use CPFcluster with the Dermatology dataset, available in the Data folder.  
 
 ```python
@@ -252,102 +252,6 @@ If `plot_tsne`, `plot_pca`, or `plot_umap` was set to `True`, clustering results
 </table>
 
 
-
-## Code Example 2: Grid Search for Optimal Parameter Configuration.
-The script below demonstrates how to tune the parameters to obtain the highest Calinski-Harabasz score.  
-
-```python
-
-import os
-import numpy as np
-import csv
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import calinski_harabasz_score
-from itertools import product
-from time import time
-from core import CPFcluster  
-from tqdm import tqdm
-
-def main():
-    # Define datasets and parameter ranges
-    datasets = ["seeds", "glass", "vertebral", "ecoli", "dermatology"]
-
-    # Parameter ranges for grid search
-    min_samples_range = [3, 5, 10]
-    rho_range = [0.1, 0.4, 0.7]
-    alpha_range = [0.5, 1, 1.5]
-    cutoff_range = [1, 2, 3]
-    merge_threshold_range = [0.3, 0.5, 0.7]
-    density_ratio_threshold_range = [0.05, 0.1, 0.2]
-
-    # Directory for saving results
-    results_dir = "Results"
-    if not os.path.exists(results_dir):
-        os.makedirs(results_dir)
-
-    results_path = os.path.join(results_dir, "CPFcluster_grid_search_results.csv")
-    
-    # Write header to results CSV
-    with open(results_path, 'w', newline='') as fd:
-        writer = csv.writer(fd)
-        writer.writerow(["Dataset", "min_samples", "rho", "alpha", "cutoff", 
-                         "merge_threshold", "density_ratio_threshold", 
-                         "CH_Index", "Time"])
-
-    # Iterate through datasets
-    for dataset in datasets:
-        # Load dataset
-        Data = np.load(f"Data/{dataset}.npy")  
-        X = Data[:, :-1]
-        y = Data[:, -1]
-        
-        # Normalize dataset for easier parameter selection
-        X = StandardScaler().fit_transform(X)
-
-        # Parameter grid
-        param_grid = product(min_samples_range, rho_range, alpha_range, 
-                             cutoff_range, merge_threshold_range, 
-                             density_ratio_threshold_range)
-
-        for params in tqdm(param_grid, desc=f"Processing {dataset}"):
-            min_samples, rho, alpha, cutoff, merge_threshold, density_ratio_threshold = params
-            start_time = time()
-
-            # Initialize CPFcluster with current parameters
-            model = CPFcluster(
-                min_samples=min_samples,
-                rho=rho,
-                alpha=alpha,
-                cutoff=cutoff,
-                merge=True,
-                merge_threshold=merge_threshold,
-                density_ratio_threshold=density_ratio_threshold,
-                n_jobs=-1
-            )
-            
-            # Fit model
-            model.fit(X)
-            labels = model.labels
-
-            # Skip iteration if all points are assigned to one cluster
-            if len(np.unique(labels)) < 2:
-                continue
-
-            # Compute the adjusted Calinski-Harabasz index
-            ch_index = calinski_harabasz_score(X, labels)
-            elapsed_time = time() - start_time
-
-            # Write results to CSV
-            with open(results_path, 'a', newline='') as fd:
-                writer = csv.writer(fd)
-                writer.writerow([dataset, min_samples, rho, alpha, cutoff, 
-                                 merge_threshold, density_ratio_threshold, 
-                                 ch_index, elapsed_time])
-
-if __name__ == "__main__":
-    main()
-
-```
 
 
 ---

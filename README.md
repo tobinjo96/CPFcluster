@@ -29,15 +29,15 @@ If you used this package in your research, please cite it:
 ```python
 CPFcluster(
     min_samples=5,                   # minimum number of neighbors to consider for connectivity #
-    rho=[0.3, 0.5, 0.7],             # parameter that controls the number of clusters for each component set #
-    alpha=[0.8, 1.0, 1.2],           # parameter for edge-cutoff in cluster detection #
+    rho=None,                        # parameter that controls the number of clusters for each component set #
+    alpha=None,                      # parameter for edge-cutoff in cluster detection #
     n_jobs=1,                        # number of parallel jobs for computation #
-    cutoff=1,                        # threshold for filtering out small connected components as outliers #
-    merge=False,                     # whether to merge similar clusters based on thresholds #
-    merge_threshold=0.5,             # distance threshold for merging clusters #
-    density_ratio_threshold=0.1,     # density ratio threshold for merging clusters #
-    distance_metric='euclidean',     # metric for distance computation (e.g., 'euclidean', 'manhattan', 'cosine') #
     remove_duplicates=False,         # whether to remove duplicate data points before clustering #
+    cutoff=1,                        # threshold for filtering out small connected components as outliers #
+    distance_metric='euclidean',     # metric for distance computation (e.g., 'euclidean', 'manhattan', 'cosine') #
+    merge=False,                     # whether to merge similar clusters based on thresholds #
+    merge_threshold=None,            # distance threshold for merging clusters #
+    density_ratio_threshold=None,    # density ratio threshold for merging clusters #
     plot_umap=False,                 # whether to plot UMAP visualization after clustering #
     plot_pca=False,                  # whether to plot PCA visualization after clustering #
     plot_tsne=False                  # whether to plot t-SNE visualization after clustering #
@@ -52,11 +52,11 @@ Number of nearest-neighbors used to create connected components from the dataset
 
 - **`rho`** *(list)*:  
   The `rho` parameter in Definition 10 of the paper "A Theoretical Analysis of Density Peaks Clustering and the Component-Wise Peak-Finding Algorithm". Varying the parameter `rho` determines the number of clusters for each component set.  
-  *Default*: `[0.3, 0.5, 0.7]`, a list of `rho` values for grid search  
+  *Default*: `[0.4]`, if user not specify any value    
 
 - **`alpha`** *(list)*:  
   An optional parameter used to set the threshold for edge weights during center selection, not discussed in the paper.  
-  *Default*: `[0.8, 1.0, 1.2]`, a list of `alpha` values for grid search
+  *Default*: `[1]`, if user not specify any value
 
 - **`n_jobs`** *(int)*:  
   Number of parallel jobs for computation. Specify `n_jobs=-1` (and include the `__name__ == "__main__":` line in your script) to use all cores.  
@@ -70,13 +70,13 @@ Number of nearest-neighbors used to create connected components from the dataset
   Specifies whether to merge clusters that are similar based on distance and density-ratio thresholds. Two clusters will be merged only if the distance between their centroids is less than the `merge_threshold` AND the density ratio exceeds the `density_ratio_threshold`.    
   *Default*: `False` 
   
-- **`merge_threshold`** *(float)*:  
+- **`merge_threshold`** *(list)*:  
   The distance threshold that determines whether two clusters should be merged. Clusters will be merged if the distance between their centroids is less than the `merge_threshold`. This parameter helps to combine clusters that are close in the feature space, potentially reducing over-segmentation. A range of 0.1–1.0 works well across diverse datasets (after standardization).  
-  *Default*: `0.5`  
+  *Default*: `[0.5]`, if user not specify any value    
 
-- **`density_ratio_threshold`** *(float)*:  
+- **`density_ratio_threshold`** *(list)*:  
   The density ratio threshold that determines whether two clusters should be merged. Clusters are merged if the ratio of densities between two clusters (lower density/higher density) exceeds the `density_ratio_threshold`, ensuring that only clusters with comparable densities are merged. A range of 0.1–0.5 is observed to work well across various datasets (after standardization).   
-  *Default*: `0.1`  
+  *Default*: `[0.1]`, if user not specify any value    
   
 - **`distance_metric`** *(str)*:  
   Metric to use for distance computation. Options include:  

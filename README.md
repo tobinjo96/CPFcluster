@@ -191,7 +191,6 @@ The script below demonstrates how to use CPFcluster with the Dermatology dataset
 
 ```python
 
-
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import adjusted_rand_score, calinski_harabasz_score
@@ -256,7 +255,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
 
 ```

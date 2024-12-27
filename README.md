@@ -130,13 +130,13 @@ Number of nearest-neighbors used to create connected components from the dataset
 
 - `cross_validate(self, X, validation_index=calinski_harabasz_score)`: Find the best parameter configuration according to the user-specified clustering evaluation metric.<br>  
   - `X` *(np.ndarray)*: input data of shape `(n_samples, n_features)`.
-  - `validation_index` *(callable)*: ....
+  - `validation_index` *(callable)*: a clustering metric from sklearn.metrics
   - **Returns**: 
-    - `best_params` *(...)*: ....
-    - `best_score` *(...)*: ....
+    - `best_params` *(tuple)*: best parameter configuration (`min_samples`, `rho`, `alpha`, `merge_threshold`, `density_ratio_threshold`).
+    - `best_score` *(float)*: the value of the clustering metric evaluated at the best parameter configuration.
 
 
-- `plot_results(self, X, k=None, rho=None, alpha=None, merge_threshold=None, density_ratio_threshold=None)`: ....<br>  
+- `plot_results(self, X, k=None, rho=None, alpha=None, merge_threshold=None, density_ratio_threshold=None)`: Produce the PCA, UMAP and t-SNE plots.<br>  
   - `X` *(np.ndarray)*: input data of shape `(n_samples, n_features)`.
   - ... 
   - **Returns**: 
@@ -323,7 +323,7 @@ The following two datasets are from Kaggle: **Fraud Detection Bank** and **Paris
    Supports parallel processing with the `n_jobs` parameter, enabling efficient computation for large datasets.
 
 5. **Customizable Metrics**:  
-   Offers flexibility through the `distance_metric` parameter, which supports multiple distance measures (e.g., `'euclidean'`, `'manhattan'`, `'cosine'`).
+   Offers flexibility through the `distance_metric` parameter, which supports multiple distance measures (e.g., `'euclidean'`, `'manhattan'`, `'cosine'`), and the `validation_index` parameter, which supports multiple internal clustering validation metrics (e.g., `'silhouette_score'`, `'calinski_harabasz_score'`, `'davies_bouldin_score'`).
 
 6. **Visualization Support**:  
    Includes built-in options for t-SNE, PCA, and UMAP visualizations to enhance interpretability of clustering results.

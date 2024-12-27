@@ -28,7 +28,7 @@ If you used this package in your research, please cite it:
 **CPFcluster** is a scalable and flexible density-based clustering method that integrates the strengths of density-level set and mode-seeking approaches. This combination offers several advantages, including: (1) the ability to detect outliers, (2) effective identification of clusters with varying densities and overlapping regions, and (3) robustness against spurious density maxima. The `CPFcluster` class is designed to identify outliers, merge similar clusters, and visualize clustering results in 2D using techniques like PCA, UMAP and t-SNE.
 ```python
 CPFcluster(
-    min_samples=5,                   # minimum number of neighbors to consider for connectivity #
+    min_samples=5,                   # the k (number of neighbors) in the k-NN graph #
     rho=None,                        # parameter that controls the number of clusters for each component set #
     alpha=None,                      # parameter for edge-cutoff in cluster detection #
     n_jobs=1,                        # number of parallel jobs for computation #
@@ -52,31 +52,23 @@ Number of nearest-neighbors used to create connected components from the dataset
 
 - **`rho`** *(list)*:  
   The `rho` parameter in Definition 10 of the paper "A Theoretical Analysis of Density Peaks Clustering and the Component-Wise Peak-Finding Algorithm". Varying the parameter `rho` determines the number of clusters for each component set.  
-  *Default*: `[0.4]`, if user not specify any value    
+  *Default*: `[0.4]`, if users not specify any value    
 
 - **`alpha`** *(list)*:  
   An optional parameter used to set the threshold for edge weights during center selection, not discussed in the paper.  
-  *Default*: `[1]`, if user not specify any value
+  *Default*: `[1]`, if users not specify any value
 
 - **`n_jobs`** *(int)*:  
   Number of parallel jobs for computation. Specify `n_jobs=-1` (and include the `__name__ == "__main__":` line in your script) to use all cores.  
   *Default*: `1`
   
+- **`remove_duplicates`** *(bool)*:  
+  Whether to remove duplicate data points before clustering.  
+  *Default*: `False`
+
 - **`cutoff`** *(int)*:  
   In the mutual k-NN graph, vertices with a number of edges less than or equal to the specified `cutoff` value are identified as outliers.  
   *Default*: `1` 
-  
-- **`merge`** *(bool)*:  
-  Specifies whether to merge clusters that are similar based on distance and density-ratio thresholds. Two clusters will be merged only if the distance between their centroids is less than the `merge_threshold` AND the density ratio exceeds the `density_ratio_threshold`.    
-  *Default*: `False` 
-  
-- **`merge_threshold`** *(list)*:  
-  The distance threshold that determines whether two clusters should be merged. Clusters will be merged if the distance between their centroids is less than the `merge_threshold`. This parameter helps to combine clusters that are close in the feature space, potentially reducing over-segmentation. A range of 0.1–1.0 works well across diverse datasets (after standardization).  
-  *Default*: `[0.5]`, if user not specify any value    
-
-- **`density_ratio_threshold`** *(list)*:  
-  The density ratio threshold that determines whether two clusters should be merged. Clusters are merged if the ratio of densities between two clusters (lower density/higher density) exceeds the `density_ratio_threshold`, ensuring that only clusters with comparable densities are merged. A range of 0.1–0.5 is observed to work well across various datasets (after standardization).   
-  *Default*: `[0.1]`, if user not specify any value    
   
 - **`distance_metric`** *(str)*:  
   Metric to use for distance computation. Options include:  
@@ -88,10 +80,18 @@ Number of nearest-neighbors used to create connected components from the dataset
   - `'hamming'`: fraction of differing attributes between samples (useful for binary data).  
   - `'jaccard'`: used for binary attributes to measure similarity based on set intersection and union.  
 
-- **`remove_duplicates`** *(bool)*:  
-  Whether to remove duplicate data points before clustering.  
-  *Default*: `False`
+- **`merge`** *(bool)*:  
+  Specifies whether to merge clusters that are similar based on distance and density-ratio thresholds. Two clusters will be merged only if the distance between their centroids is less than the `merge_threshold` AND the density ratio exceeds the `density_ratio_threshold`.    
+  *Default*: `False` 
+  
+- **`merge_threshold`** *(list)*:  
+  The distance threshold that determines whether two clusters should be merged. Clusters will be merged if the distance between their centroids is less than the `merge_threshold`. This parameter helps to combine clusters that are close in the feature space, potentially reducing over-segmentation. A range of 0.1–1.0 works well across diverse datasets (after standardization).  
+  *Default*: `[0.5]`, if users not specify any value    
 
+- **`density_ratio_threshold`** *(list)*:  
+  The density ratio threshold that determines whether two clusters should be merged. Clusters are merged if the ratio of densities between two clusters (lower density/higher density) exceeds the `density_ratio_threshold`, ensuring that only clusters with comparable densities are merged. A range of 0.1–0.5 is observed to work well across various datasets (after standardization).   
+  *Default*: `[0.1]`, if users not specify any value    
+  
 - **`plot_clusters_umap`** *(bool)*:  
   Whether to visualize the clusters via UMAP.  
   *Default*: `False`

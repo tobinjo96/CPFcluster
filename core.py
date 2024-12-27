@@ -5,7 +5,7 @@ from sklearn.neighbors import NearestNeighbors
 import utils
 import gc
 import itertools
-from plotting import plot_clusters_tsne, plot_clusters_pca,plot_clusters_umap
+from plotting import plot_clusters_tsne, plot_clusters_pca, plot_clusters_umap
 import warnings
 warnings.filterwarnings("ignore", message="invalid value encountered in cast")
 warnings.filterwarnings("ignore", message="invalid value encountered in scalar divide")
@@ -247,7 +247,7 @@ class CPFcluster:
     """
 
     def __init__(self, min_samples=5, rho=None, alpha=None, n_jobs=1, remove_duplicates=False, cutoff=1,
-                 distance_metric='euclidean', merge=False, merge_threshold=0.5, density_ratio_threshold=0.1,
+                 distance_metric='euclidean', merge=False, merge_threshold=None, density_ratio_threshold=None,
                  plot_umap=False, plot_pca=False, plot_tsne=False):
         self.min_samples = min_samples
         self.rho = rho if rho is not None else [0.4]
@@ -257,8 +257,8 @@ class CPFcluster:
         self.cutoff = cutoff
         self.distance_metric = distance_metric
         self.merge = merge
-        self.merge_threshold = merge_threshold
-        self.density_ratio_threshold = density_ratio_threshold
+        self.merge_threshold = merge_threshold if merge_threshold is not None else [0.5]
+        self.density_ratio_threshold = density_ratio_threshold if density_ratio_threshold is not None else [0.1]
         self.plot_umap = plot_umap
         self.plot_pca = plot_pca
         self.plot_tsne = plot_tsne
@@ -266,14 +266,14 @@ class CPFcluster:
 
     def fit(self, X, k_values=None):
         """
-        Fits the CPF clustering model to the input data and optimizes for multiple rho and alpha combinations.
+        Fits the CPF clustering model to the input data and optimizes for multiple parameter combinations.
 
         Parameters:
             X (np.ndarray): Input data of shape (n_samples, n_features).
             k_values (list): List of `k` values for constructing the neighborhood graph.
 
         Returns:
-            dict: A dictionary of clusterings with keys as (k, rho, alpha) tuples and values as cluster labels.
+            dict: A dictionary of clusterings with keys as (k, rho, alpha, merge_threshold, density_ratio_threshold) tuples and values as cluster labels.
         """
         if not isinstance(X, np.ndarray):
             raise ValueError("X must be an n x d numpy array.")
@@ -287,24 +287,23 @@ class CPFcluster:
         for k in k_values:
             # Build the k-neighborhood graph
             components, CCmat, knn_radius = build_CCgraph(X, k, self.cutoff, self.n_jobs, self.distance_metric)
-            self.CCmat = CCmat  
+            self.CCmat = CCmat
             # Compute best distance and big brother for the current k
             best_distance, big_brother = get_density_dists_bb(X, k, components, knn_radius, self.n_jobs)
 
-            # Cluster for each rho and alpha combination using the precomputed k-neighborhood graph
-            for rho_val, alpha_val in itertools.product(self.rho, self.alpha):
+            # Cluster for each parameter combination using the precomputed k-neighborhood graph
+            for rho_val, alpha_val, merge_threshold_val, density_ratio_threshold_val in itertools.product(
+                    self.rho, self.alpha, self.merge_threshold, self.density_ratio_threshold):
                 labels = get_y(CCmat, components, knn_radius, best_distance, big_brother, rho_val, alpha_val, d)
 
                 # Merge clusters if required
                 if self.merge:
                     centroids, densities = self.calculate_centroids_and_densities(X, labels)
-                    labels = self.merge_clusters(X, centroids, densities, labels)
+                    labels = self.merge_clusters(X, centroids, densities, labels, merge_threshold_val, density_ratio_threshold_val)
 
-                self.clusterings[(k, rho_val, alpha_val)] = labels
+                self.clusterings[(k, rho_val, alpha_val, merge_threshold_val, density_ratio_threshold_val)] = labels
 
         return self.clusterings
-
-
 
     def calculate_centroids_and_densities(self, X, labels):
         """
@@ -324,7 +323,7 @@ class CPFcluster:
         densities = np.array([np.mean(self.CCmat[labels == k, :][:, labels == k]) for k in unique_labels])
         return centroids, densities
 
-    def merge_clusters(self, X, centroids, densities, labels):
+    def merge_clusters(self, X, centroids, densities, labels, merge_threshold, density_ratio_threshold):
         """
         Merges similar clusters based on distance and density ratio thresholds.
 
@@ -333,6 +332,8 @@ class CPFcluster:
             centroids (np.ndarray): Centroids of each cluster.
             densities (np.ndarray): Average density of each cluster.
             labels (np.ndarray): Cluster labels for each sample.
+            merge_threshold (float): Distance threshold for merging clusters.
+            density_ratio_threshold (float): Density ratio threshold for merging clusters.
 
         Returns:
             labels (np.ndarray): Updated cluster labels after merging.
@@ -343,8 +344,8 @@ class CPFcluster:
         merge_map = {}
         for i in range(n_clusters):
             for j in range(i + 1, n_clusters):
-                if np.linalg.norm(centroids[i] - centroids[j]) < self.merge_threshold and \
-                   abs(densities[i] - densities[j]) / max(densities[i], densities[j]) < self.density_ratio_threshold:
+                if np.linalg.norm(centroids[i] - centroids[j]) < merge_threshold and \
+                   abs(densities[i] - densities[j]) / max(densities[i], densities[j]) < density_ratio_threshold:
                     smaller = i if densities[i] < densities[j] else j
                     larger = j if smaller == i else i
                     merge_map[smaller] = larger
@@ -363,43 +364,43 @@ class CPFcluster:
             validation_index (callable): A function to compute the validation index (default: Calinski-Harabasz index).
 
         Returns:
-            tuple: Optimal (k, rho, alpha) parameters and their corresponding validation score.
+            tuple: Optimal (k, rho, alpha, merge_threshold, density_ratio_threshold) parameters and their corresponding validation score.
         """
         if not self.clusterings:
             raise RuntimeError("You need to call `fit` before running cross-validation.")
 
         best_score = -np.inf
         best_params = None
-        for (k, rho, alpha), labels in self.clusterings.items():
+        for (k, rho, alpha, merge_threshold, density_ratio_threshold), labels in self.clusterings.items():
             if len(np.unique(labels)) > 1:
                 score = validation_index(X, labels)
                 if score > best_score:
                     best_score = score
-                    best_params = (k, rho, alpha)
+                    best_params = (k, rho, alpha, merge_threshold, density_ratio_threshold)
         return best_params, best_score
 
-    def plot_results(self, X, k=None, rho=None, alpha=None):
+    def plot_results(self, X, k=None, rho=None, alpha=None, merge_threshold=None, density_ratio_threshold=None):
         """
-        Plots the clustering results for a specific combination of (k, rho, alpha).
+        Plots the clustering results for a specific combination of parameters.
 
         Parameters:
             X (np.ndarray): Input data of shape (n_samples, n_features).
             k (int): Value of `k` for the neighborhood graph.
             rho (float): Value of `rho` for clustering.
             alpha (float): Value of `alpha` for clustering.
+            merge_threshold (float): Distance threshold for merging clusters.
+            density_ratio_threshold (float): Density ratio threshold for merging clusters.
 
         Returns:
             None
         """
-        if (k, rho, alpha) not in self.clusterings:
-            raise ValueError(f"No clustering result found for (k={k}, rho={rho}, alpha={alpha}).")
+        if (k, rho, alpha, merge_threshold, density_ratio_threshold) not in self.clusterings:
+            raise ValueError(f"No clustering result found for (k={k}, rho={rho}, alpha={alpha}, merge_threshold={merge_threshold}, density_ratio_threshold={density_ratio_threshold}).")
 
-        labels = self.clusterings[(k, rho, alpha)]
+        labels = self.clusterings[(k, rho, alpha, merge_threshold, density_ratio_threshold)]
         if self.plot_umap:
             plot_clusters_umap(X, labels)
         if self.plot_pca:
             plot_clusters_pca(X, labels)
         if self.plot_tsne:
             plot_clusters_tsne(X, labels)
-
-

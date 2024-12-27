@@ -128,6 +128,22 @@ Number of nearest-neighbors used to create connected components from the dataset
     - `labels` *(np.ndarray)*: updated cluster labels after merging.
     
 
+- `cross_validate(self, X, validation_index=calinski_harabasz_score)`: ....<br>  
+  - `X` *(np.ndarray)*: input data of shape `(n_samples, n_features)`.
+  - `validation_index` *(...)*: ....
+  - **Returns**: 
+    - `best_params` *(...)*: ....
+    - `best_score` *(...)*: ....
+
+
+- `plot_results(self, X, k=None, rho=None, alpha=None, merge_threshold=None, density_ratio_threshold=None)`: ....<br>  
+  - `X` *(np.ndarray)*: input data of shape `(n_samples, n_features)`.
+  - ... 
+  - **Returns**: 
+    - `None`.
+
+
+
 ---
 
 ## Helper Functions

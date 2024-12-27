@@ -228,7 +228,7 @@ def main():
     # Perform cross-validation to find the best (min_samples, rho, alpha, merge_threshold, density_ratio_threshold)
     print("Performing cross-validation...")
     best_params, best_score = cpf.cross_validate(X, validation_index=calinski_harabasz_score)
-    print(f"Best Parameters: k={best_params[0]}, rho={best_params[1]:.2f}, alpha={best_params[2]:.2f}, "
+    print(f"Best Parameters: min_samples={best_params[0]}, rho={best_params[1]:.2f}, alpha={best_params[2]:.2f}, "
         f"merge_threshold={best_params[3]:.2f}, density_ratio_threshold={best_params[4]:.2f}. "
         f"Best Validation Score (Calinski-Harabasz Index): {best_score:.2f}")
 
@@ -262,7 +262,7 @@ if __name__ == "__main__":
 
 ### Visualize Results
 
-If `plot_tsne`, `plot_pca`, or `plot_umap` was set to `True`, clustering results will be visualized automatically after fitting the model. Here are the PCA, UMAP, and t-SNE visualizations for the Dermatology dataset:
+If `plot_tsne`, `plot_pca`, or `plot_umap` was set to `True`, clustering results will be visualized automatically after fitting the model. Here are the PCA, UMAP, and t-SNE visualizations for the Dermatology dataset (`min_samples=15, rho=0.30, alpha=0.60, merge_threshold=0.60, density_ratio_threshold=0.10`):
 
 <table width="100%">
   <tr>

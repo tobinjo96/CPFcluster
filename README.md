@@ -20,6 +20,8 @@ If you used this package in your research, please cite it:
 ```
 
 
+**Please note that the current version differs from the one available on PyPI (released on December 6, 2024). In this version, the inputs for certain arguments are lists instead of scalar values. This change allows users to avoid writing loops themselves, simplifying the process.**
+
 ---
 
 

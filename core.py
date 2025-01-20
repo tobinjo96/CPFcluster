@@ -5,7 +5,7 @@ from sklearn.neighbors import NearestNeighbors
 import utils
 import gc
 import itertools
-from plotting import plot_clusters_tsne, plot_clusters_pca, plot_clusters_umap
+from plotting import plot_clusters_tsne, plot_clusters_pca,plot_clusters_umap
 import warnings
 warnings.filterwarnings("ignore", message="invalid value encountered in cast")
 warnings.filterwarnings("ignore", message="invalid value encountered in scalar divide")
@@ -29,21 +29,35 @@ def build_CCgraph(X, min_samples, cutoff, n_jobs, distance_metric='euclidean'):
         knn_radius (np.ndarray): Array of distances to the min_samples-th neighbor for each sample.
     """
     n = X.shape[0]
+
+    # Handle the case where there are fewer samples than min_samples
+    if n < min_samples:
+        warnings.warn(
+            f"Dataset has fewer samples ({n}) than `min_samples` ({min_samples}). Returning empty graph."
+        )
+        components = np.full(n, np.nan)  # Assign all to outliers
+        CCmat = scipy.sparse.csr_matrix((n, n), dtype=np.float32)
+        knn_radius = np.full(n, np.nan, dtype=np.float32)
+        return components, CCmat, knn_radius
+
+    # Build k-nearest neighbors graph
     kdt = NearestNeighbors(n_neighbors=min_samples, metric=distance_metric, n_jobs=n_jobs, algorithm='auto').fit(X)
     CCmat = kdt.kneighbors_graph(X, mode='distance').astype(np.float32)
     distances, _ = kdt.kneighbors(X)
     knn_radius = distances[:, min_samples - 1]
     CCmat = CCmat.minimum(CCmat.T)
 
-    # Remove outlying points
+    # Identify connected components
     _, components = scipy.sparse.csgraph.connected_components(CCmat, directed=False, return_labels=True)
     comp_labs, comp_count = np.unique(components, return_counts=True)
+
+    # Mark outlier components (those smaller than cutoff)
     outlier_components = comp_labs[comp_count <= cutoff]
     nanidx = np.isin(components, outlier_components)
 
-    # Change components to float to accommodate NaN values
-    components = components.astype(np.float32)  
-    components[nanidx] = -1 
+    # Use `np.nan` to indicate outliers instead of `-1`
+    components = components.astype(np.float32)
+    components[nanidx] = np.nan
 
     return components, CCmat, knn_radius
 
@@ -82,8 +96,8 @@ def get_density_dists_bb(X, k, components, knn_radius, n_jobs):
         cc_knn_radius = knn_radius[cc_idx]
         cc_best_distance = np.empty((nc), dtype=np.float32)
         cc_big_brother = np.empty((nc), dtype=np.int32)
-        cc_radius_diff = cc_knn_radius[:, np.newaxis] - cc_knn_radius[neighbors]
         
+        cc_radius_diff = cc_knn_radius[:, np.newaxis] - cc_knn_radius[neighbors]
         rows, cols = np.where(cc_radius_diff > 0)
         rows, unidx = np.unique(rows, return_index=True)
         del cc_radius_diff
@@ -167,80 +181,104 @@ def get_y(CCmat, components, knn_radius, best_distance, big_brother, rho, alpha,
     valid_indices = components != -1
     peaks = []
     n_cent = 0
-    comps = np.unique(components[~np.isnan(components)]).astype(int)
-    
-    for cc in np.unique(components[valid_indices]):
+    comps = np.unique(components[valid_indices]).astype(int)
+
+    for cc in comps:
         cc_idx = np.where(components == cc)[0]
         nc = cc_idx.size
         cc_knn_radius = knn_radius[cc_idx]
         cc_best_distance = best_distance[cc_idx]
-        
-        # Convert big_brother to cc_big_brother
-        index = np.argsort(cc_idx)
-        cc_big_brother = np.take(index, np.searchsorted(cc_idx[index], big_brother[cc_idx], sorter=index), mode='clip')
-        
-        not_tested = np.ones(nc, dtype=bool)
+
+        # Handle case where no valid data points are present
+        if nc == 0:
+            continue
+
+        # Compute `peaked`
         peaked = np.divide(cc_best_distance, cc_knn_radius, where=cc_knn_radius != 0)
         peaked[(cc_best_distance == 0) & (cc_knn_radius == 0)] = np.inf
-        
+
+        # Check if `peaked` is empty
+        if peaked.size == 0:
+            warnings.warn(f"No valid peaked values found for component {cc}. Skipping clustering for this component.")
+            continue
+
+        # Find initial cluster centers
         cc_centers = [np.argmax(peaked)]
+        not_tested = np.ones(nc, dtype=bool)
         not_tested[cc_centers[0]] = False
-        
-        CCmat_level = CCmat[cc_idx, :][:, cc_idx] 
-        
-        while np.sum(not_tested) > 0:  
+
+        CCmat_level = CCmat[cc_idx, :][:, cc_idx]
+
+        while np.sum(not_tested) > 0:
+            # Propose a new center
             prop_cent = np.argmax(peaked[not_tested])
             prop_cent = np.arange(peaked.shape[0])[not_tested][prop_cent]
-            
+
             if cc_knn_radius[prop_cent] > max(cc_knn_radius[~not_tested]):
                 cc_level_set = np.where(cc_knn_radius <= cc_knn_radius[prop_cent])[0]
                 CCmat_check = CCmat_level[cc_level_set, :][:, cc_level_set]
                 n_cc, _ = scipy.sparse.csgraph.connected_components(CCmat_check, directed=False, return_labels=True)
                 if n_cc == 1:
                     break
-            
+
             # Calculate v_cutoff and e_cutoff
-            v_cutoff = cc_knn_radius[prop_cent] / (rho**(1/d))
+            v_cutoff = cc_knn_radius[prop_cent] / (rho ** (1 / d))
             e_cutoff = cc_knn_radius[prop_cent] / alpha
-            
+
             e_mask = np.abs(CCmat_level.data) > e_cutoff
             CCmat_level.data[e_mask] = 0
             CCmat_level.eliminate_zeros()
-            
-            cc_cut_idx = np.where(cc_knn_radius < v_cutoff)[0] if cc_knn_radius[prop_cent] > 0 else np.where(cc_knn_radius <= v_cutoff)[0]
+
+            cc_cut_idx = (
+                np.where(cc_knn_radius < v_cutoff)[0]
+                if cc_knn_radius[prop_cent] > 0
+                else np.where(cc_knn_radius <= v_cutoff)[0]
+            )
             reduced_CCmat = CCmat_level[cc_cut_idx, :][:, cc_cut_idx]
-            
-            _, cc_labels = scipy.sparse.csgraph.connected_components(reduced_CCmat, directed=False, return_labels=True)
-            
+
+            _, cc_labels = scipy.sparse.csgraph.connected_components(
+                reduced_CCmat, directed=False, return_labels=True
+            )
+
             gc.collect()  # Manage memory
 
             center_comp = np.unique(cc_labels[np.isin(cc_cut_idx, cc_centers)])
             prop_cent_comp = cc_labels[np.where(cc_cut_idx == prop_cent)[0][0]]
-            
+
             if prop_cent_comp in center_comp:
                 if peaked[prop_cent] == min(peaked[cc_centers]):
                     cc_centers.append(prop_cent)
                     not_tested[prop_cent] = False
                     continue
                 else:
-                    break  
+                    break
             else:
                 cc_centers.append(prop_cent)
                 not_tested[prop_cent] = False
 
         peaks.extend(cc_idx[cc_centers])
-        
+
         # Construct BBTree and cluster matrix
-        BBTree = np.column_stack((np.arange(nc), cc_big_brother))
-        BBTree[cc_centers, 1] = cc_centers
-        Clustmat = scipy.sparse.csr_matrix((np.ones(nc), (BBTree[:, 0], BBTree[:, 1])), shape=(nc, nc))
+        local_index_map = {global_idx: local_idx for local_idx, global_idx in enumerate(cc_idx)}
+        cc_big_brother = np.array([local_index_map.get(b, -1) for b in big_brother[cc_idx]])
         
-        n_clusts, cc_y_pred = scipy.sparse.csgraph.connected_components(Clustmat, directed=True, return_labels=True)
+        valid_mask = cc_big_brother >= 0
+        BBTree = np.column_stack((np.arange(nc)[valid_mask], cc_big_brother[valid_mask]))
+        BBTree[cc_centers, 1] = cc_centers
+        Clustmat = scipy.sparse.csr_matrix(
+            (np.ones(BBTree.shape[0]), (BBTree[:, 0], BBTree[:, 1])), shape=(nc, nc)
+        )
+
+        n_clusts, cc_y_pred = scipy.sparse.csgraph.connected_components(
+            Clustmat, directed=True, return_labels=True
+        )
         cc_y_pred += n_cent
         n_cent += n_clusts
         y_pred[cc_idx] = cc_y_pred
-        
+
     return y_pred
+
+
 class CPFcluster:
     """
     A class to perform CPF (Connected Components and Density-based) clustering.

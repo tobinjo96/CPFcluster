@@ -2,6 +2,7 @@ import numpy as np
 import scipy.sparse
 import multiprocessing as mp
 from sklearn.neighbors import NearestNeighbors
+import faiss
 import utils
 import gc
 import itertools

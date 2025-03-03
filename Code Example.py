@@ -3,6 +3,9 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import adjusted_rand_score, calinski_harabasz_score
 from core import CPFcluster
+# Note that faiss-gpu is only supported on Linux, not on Windows.
+import time
+start_time = time.time()
 
 
 # Define the main function to utilize Python's multiprocessing unit (in Windows OS).
@@ -63,4 +66,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
+print("--- %s seconds ---" % (time.time() - start_time))

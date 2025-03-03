@@ -42,12 +42,25 @@ def build_CCgraph(X, min_samples, cutoff, n_jobs, distance_metric='euclidean'):
         return components, CCmat, knn_radius
 
     # Build k-nearest neighbors graph
-    kdt = NearestNeighbors(n_neighbors=min_samples, metric=distance_metric, n_jobs=n_jobs, algorithm='auto').fit(X)
-    CCmat = kdt.kneighbors_graph(X, mode='distance').astype(np.float32)
-    distances, _ = kdt.kneighbors(X)
-    knn_radius = distances[:, min_samples - 1]
-    CCmat = CCmat.minimum(CCmat.T)
+    # kdt = NearestNeighbors(n_neighbors=min_samples, metric=distance_metric, n_jobs=n_jobs, algorithm='auto').fit(X)
+    # CCmat = kdt.kneighbors_graph(X, mode='distance').astype(np.float32)
+    # distances, _ = kdt.kneighbors(X)
+    # knn_radius = distances[:, min_samples - 1]
+    # CCmat = CCmat.minimum(CCmat.T)
 
+    # FAISS Index for Nearest Neighbor Search
+    index = faiss.IndexFlatL2(X.shape[1])  # L2 (Euclidean) distance index
+    index.add(X.astype(np.float32))
+    distances, indices = index.search(X.astype(np.float32), min_samples)
+
+    # Construct adjacency matrix
+    row_idx = np.repeat(np.arange(n), min_samples)
+    col_idx = indices.flatten()
+    data = distances.flatten()
+    CCmat = scipy.sparse.csr_matrix((data, (row_idx, col_idx)), shape=(n, n), dtype=np.float32)
+    CCmat = CCmat.minimum(CCmat.T)  # Ensure symmetry
+    knn_radius = distances[:, min_samples - 1]
+    
     # Identify connected components
     _, components = scipy.sparse.csgraph.connected_components(CCmat, directed=False, return_labels=True)
     comp_labs, comp_count = np.unique(components, return_counts=True)

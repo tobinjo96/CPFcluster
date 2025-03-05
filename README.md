@@ -265,7 +265,7 @@ if __name__ == "__main__":
 ```
 
 ### Time Complexity
-In the provided code example, the CPFcluster algorithm is executed 768 times for each dataset (calculated as 3×4×4×4×4=768). While CPFcluster is generally fast, performing 768 repetitions can take a few minutes for small datasets and several hours for large datasets. For reference, on a computer with an Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz, the execution time is 453 seconds for the Ecoli dataset (size [336, 7]), 9897 seconds for the Phonemes dataset (size [4509, 256]), and 33046 seconds for the Fraud Detection Bank dataset (size [20468, 111]).
+In the provided code example, the CPFcluster algorithm is executed 768 times for each dataset (calculated as 3×4×4×4×4=768). While CPFcluster is generally fast, performing 768 repetitions can take a few minutes for small datasets and several hours for large datasets. For reference, on a computer with an Intel(R) Core(TM) i7-6700 CPU @ 3.40GHz, the execution time is 453 seconds for the Ecoli dataset (size [336, 7]), 9897 seconds for the Phonemes dataset (size [4509, 256]), and 33046 seconds for the Fraud Detection Bank dataset (size [20468, 111]). Our experiments indicate that runtime scales **linearly** with the number of data points.
 
 ### Visualize Results
 

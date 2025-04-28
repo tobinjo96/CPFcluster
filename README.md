@@ -2,7 +2,7 @@
 
 ### Note that this version differs from the PyPI release (Dec 6, 2024): certain arguments now accept lists instead of scalars, eliminating the need for users to write loops.
 
-### If your dataset includes geographic coordinates, please use the code from the Spatial-CPF branch.
+### If your dataset includes geographic coordinates, please use the code from the Spatial-CPF folder.
 
 
 

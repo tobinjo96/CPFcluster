@@ -2,6 +2,8 @@
 
 ### Note that this version differs from the PyPI release (Dec 6, 2024): certain arguments now accept lists instead of scalars, eliminating the need for users to write loops.
 
+### If your dataset includes geographic coordinates, please use the code from the Spatial-CPF branch.
+
 
 
 Illustration of the **CPFcluster** algorithm. **(1)** The mutual k-NN graph is constructed, from which we extract two component sets. **(2)** Densities are computed as the inverse of the distance from an instance to its k-th nearest neighbor (darker color represents higher density). The distance from each instance to its nearest neighbor of higher density is found (larger point represents larger distance to point of higher density). The peak-finding criterion is the product of these two quantities. **(3)** For each connected component, density-level sets are used to assess potential cluster centers, shown in yellow. **(4)** Non-center instances are assigned to the same cluster as their nearest neighbor of higher local density. A sample assignment path is shown in gold for the purple cluster.

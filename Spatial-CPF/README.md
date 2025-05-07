@@ -20,9 +20,9 @@ If you used this package in your research, please cite it:
 
 ## (1) The `create_neighbor_adjacency_matrix` function accepts a two-column numpy array, where the first column is latitude and the second column is longitude.
 
-- `create_neighbor_adjacency_matrix(coords, n_neighbors=15)`: Create a 0/1 adjacency matrix where 1 indicates that a point is among the k-nearest neighbors of another point.<br>  
+- `create_neighbor_adjacency_matrix(coords, n_neighbors)`: Create a 0/1 adjacency matrix where 1 indicates that a point is among the k-nearest neighbors of another point.<br>  
   - `coords` *(np.ndarray)*: numpy array of shape `(n_samples, 2)` with latitude/longitude in degrees.
-  - `n_neighbors` *(int)*: number of nearest neighbors to consider.
+  - `n_neighbors` *(int)*: number of nearest neighbors to consider. In general, `n_neighbors` will have the same value as the argument `min_samples` in the `build_CCgraph` function.
   - **Returns**:
     - `adjacency_matrix`: binary numpy array of shape `(n_samples, n_samples)`.
 

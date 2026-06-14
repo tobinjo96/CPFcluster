@@ -34,7 +34,7 @@ def main():
 
     # Fit the model for a range of min_samples values.
     print("Fitting CPFcluster...")
-    geo_neighbor_adjacency_matrix = np.load("Data/geo_neighbor_adjacency_matrix.npy")
+    geo_neighbor_adjacency_matrix = np.load("geo_neighbor_adjacency_matrix.npy")
     cpf.fit(X, geo_neighbor_adjacency_matrix, k_values=[65, 70, 75])
 
     # Perform cross-validation to find the best (min_samples, rho, alpha, merge_threshold, density_ratio_threshold)

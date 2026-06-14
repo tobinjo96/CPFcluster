@@ -10,13 +10,23 @@ def plot_clusters_umap(X, labels, sample_size=30000, n_neighbors=15, min_dist=0.
         min_dist (float): Minimum distance parameter for UMAP.
         random_state (int): Random state for reproducibility.
     """
-    import umap
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="Tensorflow not installed; ParametricUMAP will be unavailable",
+            category=ImportWarning,
+        )
+        import umap
     import matplotlib.pyplot as plt
     import numpy as np
 
     # If dataset is large, sample for visualization
     if X.shape[0] > sample_size:
-        subset_indices = np.random.choice(X.shape[0], size=sample_size, replace=False)
+        subset_indices = np.random.default_rng(random_state).choice(
+            X.shape[0], size=sample_size, replace=False
+        )
         X = X[subset_indices]
         labels = labels[subset_indices]
 
@@ -26,7 +36,8 @@ def plot_clusters_umap(X, labels, sample_size=30000, n_neighbors=15, min_dist=0.
         n_neighbors=n_neighbors,
         min_dist=min_dist,
         random_state=random_state,
-        n_jobs=4,
+        # UMAP disables parallelism when random_state is set.
+        n_jobs=1,
         low_memory=True,
     )
     X_reduced = reducer.fit_transform(X)
@@ -116,12 +127,20 @@ def plot_clusters_tsne(X, labels, sample_size=30000, perplexity=30, random_state
 
     # If dataset is large, sample for visualization
     if X.shape[0] > sample_size:
-        subset_indices = np.random.choice(X.shape[0], size=sample_size, replace=False)
+        subset_indices = np.random.default_rng(random_state).choice(
+            X.shape[0], size=sample_size, replace=False
+        )
         X = X[subset_indices]
         labels = labels[subset_indices]
 
     # Perform t-SNE
-    tsne = TSNE(n_components=2, perplexity=perplexity, random_state=random_state, n_jobs=4)
+    effective_perplexity = min(perplexity, max(1, X.shape[0] - 1))
+    tsne = TSNE(
+        n_components=2,
+        perplexity=effective_perplexity,
+        random_state=random_state,
+        n_jobs=4,
+    )
     X_reduced = tsne.fit_transform(X)
 
     # Group cluster points efficiently

@@ -1,5 +1,8 @@
 import numpy as np
+from pathlib import Path
 from sklearn.neighbors import NearestNeighbors
+
+BASE_DIR = Path(__file__).resolve().parent
 
 def create_neighbor_adjacency_matrix(coords, n_neighbors):
     """
@@ -45,7 +48,12 @@ def create_neighbor_adjacency_matrix(coords, n_neighbors):
     return adjacency_matrix
 
 
-Data = np.loadtxt('Data/G5_shallow_topsoil_WGS84.csv', delimiter=',', skiprows=1)
-coordinates = Data[:, :2]
-adj_matrix = create_neighbor_adjacency_matrix(coordinates, n_neighbors=75)
-np.save('geo_neighbor_adjacency_matrix.npy', adj_matrix)
+def main():
+    data = np.loadtxt(BASE_DIR / 'Data/G5_shallow_topsoil_WGS84.csv', delimiter=',', skiprows=1)
+    coordinates = data[:, :2]
+    adj_matrix = create_neighbor_adjacency_matrix(coordinates, n_neighbors=75)
+    np.save(BASE_DIR / 'geo_neighbor_adjacency_matrix.npy', adj_matrix)
+
+
+if __name__ == "__main__":
+    main()

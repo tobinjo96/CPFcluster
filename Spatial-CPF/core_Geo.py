@@ -8,8 +8,6 @@ import gc
 import itertools
 from plotting import plot_clusters_tsne, plot_clusters_pca,plot_clusters_umap
 import warnings
-warnings.filterwarnings("ignore", message="invalid value encountered in cast")
-warnings.filterwarnings("ignore", message="invalid value encountered in scalar divide")
 from sklearn.metrics import calinski_harabasz_score
 
 def build_CCgraph(X, geo_neighbor_adjacency_matrix, min_samples, cutoff, n_jobs, distance_metric='euclidean'):
@@ -50,10 +48,21 @@ def build_CCgraph(X, geo_neighbor_adjacency_matrix, min_samples, cutoff, n_jobs,
     # knn_radius = distances[:, min_samples - 1]
     # CCmat = CCmat.minimum(CCmat.T)
 
-    # FAISS Index for Nearest Neighbor Search
-    index = faiss.IndexFlatL2(X.shape[1])  # L2 (Euclidean) distance index
-    index.add(X.astype(np.float32))
-    distances, indices = index.search(X.astype(np.float32), min_samples)
+    if distance_metric in ("euclidean", "l2"):
+        # FAISS requires contiguous float32 input and returns squared L2 distances.
+        X_faiss = np.ascontiguousarray(X, dtype=np.float32)
+        index = faiss.IndexFlatL2(X_faiss.shape[1])
+        index.add(X_faiss)
+        distances, indices = index.search(X_faiss, min_samples)
+        np.sqrt(distances, out=distances)
+    else:
+        kdt = NearestNeighbors(
+            n_neighbors=min_samples,
+            metric=distance_metric,
+            n_jobs=n_jobs,
+            algorithm="auto",
+        ).fit(X)
+        distances, indices = kdt.kneighbors(X)
 
     # Construct adjacency matrix
     row_idx = np.repeat(np.arange(n), min_samples)
@@ -100,7 +109,7 @@ def get_density_dists_bb(X, k, components, knn_radius, n_jobs):
     elif n_jobs <= 0:
         n_jobs = 1
     best_distance = np.full((X.shape[0]), np.nan, dtype=np.float32)
-    big_brother = np.full((X.shape[0]), np.nan, dtype=np.int32)
+    big_brother = np.full(X.shape[0], -1, dtype=np.int32)
     comps = np.unique((components[~np.isnan(components)])).astype(np.int32)
     ps = np.zeros((1, 2), dtype=np.float32)
     
@@ -195,7 +204,7 @@ def get_y(CCmat, components, knn_radius, best_distance, big_brother, rho, alpha,
     """
     n = components.shape[0]
     y_pred = np.full(n, -1)
-    valid_indices = components != -1
+    valid_indices = np.isfinite(components)
     peaks = []
     n_cent = 0
     comps = np.unique(components[valid_indices]).astype(int)
@@ -211,7 +220,13 @@ def get_y(CCmat, components, knn_radius, best_distance, big_brother, rho, alpha,
             continue
 
         # Compute `peaked`
-        peaked = np.divide(cc_best_distance, cc_knn_radius, where=cc_knn_radius != 0)
+        peaked = np.full_like(cc_best_distance, np.inf)
+        np.divide(
+            cc_best_distance,
+            cc_knn_radius,
+            out=peaked,
+            where=cc_knn_radius != 0,
+        )
         peaked[(cc_best_distance == 0) & (cc_knn_radius == 0)] = np.inf
 
         # Check if `peaked` is empty
@@ -279,9 +294,9 @@ def get_y(CCmat, components, knn_radius, best_distance, big_brother, rho, alpha,
         local_index_map = {global_idx: local_idx for local_idx, global_idx in enumerate(cc_idx)}
         cc_big_brother = np.array([local_index_map.get(b, -1) for b in big_brother[cc_idx]])
         
+        cc_big_brother[cc_centers] = cc_centers
         valid_mask = cc_big_brother >= 0
         BBTree = np.column_stack((np.arange(nc)[valid_mask], cc_big_brother[valid_mask]))
-        BBTree[cc_centers, 1] = cc_centers
         Clustmat = scipy.sparse.csr_matrix(
             (np.ones(BBTree.shape[0]), (BBTree[:, 0], BBTree[:, 1])), shape=(nc, nc)
         )
@@ -332,12 +347,25 @@ class CPFcluster:
         """
         if not isinstance(X, np.ndarray):
             raise ValueError("X must be an n x d numpy array.")
+        if X.ndim != 2 or X.shape[0] == 0 or X.shape[1] == 0:
+            raise ValueError("X must be a non-empty two-dimensional array.")
+        if not np.issubdtype(X.dtype, np.number) or not np.all(np.isfinite(X)):
+            raise ValueError("X must contain only finite numeric values.")
         if self.remove_duplicates:
             X = np.unique(X, axis=0)
         n, d = X.shape
 
+        if geo_neighbor_adjacency_matrix.shape != (n, n):
+            raise ValueError(
+                "geo_neighbor_adjacency_matrix must have shape "
+                f"({n}, {n}), got {geo_neighbor_adjacency_matrix.shape}."
+            )
+
         if k_values is None:
             k_values = [self.min_samples]  # Default to min_samples if no k_values are provided.
+
+        if any(not isinstance(k, (int, np.integer)) or k < 1 for k in k_values):
+            raise ValueError("Every k value must be a positive integer.")
 
         for k in k_values:
             # Build the k-neighborhood graph
@@ -399,8 +427,14 @@ class CPFcluster:
         merge_map = {}
         for i in range(n_clusters):
             for j in range(i + 1, n_clusters):
-                if np.linalg.norm(centroids[i] - centroids[j]) < merge_threshold and \
-                   abs(densities[i] - densities[j]) / max(densities[i], densities[j]) < density_ratio_threshold:
+                density_scale = max(abs(densities[i]), abs(densities[j]))
+                density_ratio = (
+                    abs(densities[i] - densities[j]) / density_scale
+                    if density_scale > 0
+                    else 0.0
+                )
+                if (np.linalg.norm(centroids[i] - centroids[j]) < merge_threshold
+                        and density_ratio < density_ratio_threshold):
                     smaller = i if densities[i] < densities[j] else j
                     larger = j if smaller == i else i
                     merge_map[smaller] = larger

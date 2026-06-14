@@ -1,19 +1,22 @@
 
 import numpy as np
+from pathlib import Path
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import calinski_harabasz_score
 from core_Geo import CPFcluster
 # Note that faiss-gpu is only supported on Linux, not on Windows.
 import time
-start_time = time.time()
+
+BASE_DIR = Path(__file__).resolve().parent
 
 
 # Define the main function to utilize Python's multiprocessing unit (in Windows OS).
 def main():
+    start_time = time.time()
     # Load the dataset.
     
-    Data = np.loadtxt('Data/G5_shallow_topsoil_WGS84.csv', delimiter=',', skiprows=1)
-    X = Data[:, 2:]
+    data = np.loadtxt(BASE_DIR / 'Data/G5_shallow_topsoil_WGS84.csv', delimiter=',', skiprows=1)
+    X = data[:, 2:]
 
     # Normalize dataset for easier hyperparameter tuning.
     X = StandardScaler().fit_transform(X)
@@ -34,7 +37,7 @@ def main():
 
     # Fit the model for a range of min_samples values.
     print("Fitting CPFcluster...")
-    geo_neighbor_adjacency_matrix = np.load("geo_neighbor_adjacency_matrix.npy")
+    geo_neighbor_adjacency_matrix = np.load(BASE_DIR / "geo_neighbor_adjacency_matrix.npy")
     cpf.fit(X, geo_neighbor_adjacency_matrix, k_values=[65, 70, 75])
 
     # Perform cross-validation to find the best (min_samples, rho, alpha, merge_threshold, density_ratio_threshold)
@@ -48,7 +51,7 @@ def main():
     # Access the cluster labels for the best paramter configuration.
     best_labels = cpf.clusterings[best_params]
     print("Cluster labels for best parameters:", best_labels)
-    np.savetxt('data_labels.csv', best_labels, delimiter=',', fmt='%f')
+    np.savetxt(BASE_DIR / 'data_labels.csv', best_labels, delimiter=',', fmt='%d')
 
 
     # Plot results for the best paramter configuration.
@@ -62,7 +65,8 @@ def main():
         density_ratio_threshold=best_params[4]
     )
 
+    print("--- %s seconds ---" % (time.time() - start_time))
+
 
 if __name__ == "__main__":
     main()
-print("--- %s seconds ---" % (time.time() - start_time))

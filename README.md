@@ -1,6 +1,6 @@
 # CPFcluster: the Component-wise Peak-Finding algorithm
 
-### Note that this version differs from the PyPI release (Dec 6, 2024): certain arguments now accept lists instead of scalars, eliminating the need for users to write loops.
+### Please note that the PyPI release published on December 6, 2024, is outdated. Use the latest code from this GitHub repository instead.
 
 ### If your dataset includes geographic coordinates, please use the code from the Spatial-CPF folder.
 

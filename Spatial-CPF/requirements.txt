@@ -3,3 +3,4 @@ scipy
 scikit-learn
 matplotlib
 umap-learn
+faiss-cpu

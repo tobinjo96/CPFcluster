@@ -9,6 +9,9 @@ def chunks(lst, n):
 
 def density_broad_search_star(a_b):
   try:
-    return euclidean_distances(a_b[1],a_b[0])
+    # sklearn returns shape (n_candidates, 1) here.  Older NumPy versions
+    # tolerated assigning one-element rows to scalar array slots; NumPy 2.x
+    # correctly rejects that with "setting an array element with a sequence".
+    return euclidean_distances(a_b[1], a_b[0]).ravel()
   except Exception as e:
     raise Exception(e)

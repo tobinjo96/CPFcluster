@@ -30,6 +30,8 @@ def build_CCgraph(X, min_samples, cutoff, n_jobs, distance_metric='euclidean'):
         knn_radius (np.ndarray): Array of distances to the min_samples-th neighbor for each sample.
     """
     n = X.shape[0]
+    if min_samples < 1:
+        raise ValueError("min_samples must be at least 1.")
 
     # Handle the case where there are fewer samples than min_samples
     if n < min_samples:
@@ -48,10 +50,23 @@ def build_CCgraph(X, min_samples, cutoff, n_jobs, distance_metric='euclidean'):
     # knn_radius = distances[:, min_samples - 1]
     # CCmat = CCmat.minimum(CCmat.T)
 
-    # FAISS Index for Nearest Neighbor Search
-    index = faiss.IndexFlatL2(X.shape[1])  # L2 (Euclidean) distance index
-    index.add(X.astype(np.float32))
-    distances, indices = index.search(X.astype(np.float32), min_samples)
+    if distance_metric in ("euclidean", "l2"):
+        # FAISS requires contiguous float32 input and returns *squared* L2
+        # distances. Convert them back to Euclidean distances so downstream
+        # thresholds retain their original meaning.
+        X_faiss = np.ascontiguousarray(X, dtype=np.float32)
+        index = faiss.IndexFlatL2(X.shape[1])
+        index.add(X_faiss)
+        distances, indices = index.search(X_faiss, min_samples)
+        np.sqrt(np.maximum(distances, 0), out=distances)
+    else:
+        kdt = NearestNeighbors(
+            n_neighbors=min_samples,
+            metric=distance_metric,
+            n_jobs=n_jobs,
+            algorithm="auto",
+        ).fit(X)
+        distances, indices = kdt.kneighbors(X)
 
     # Construct adjacency matrix
     row_idx = np.repeat(np.arange(n), min_samples)
@@ -104,12 +119,12 @@ def get_density_dists_bb(X, k, components, knn_radius, n_jobs):
     for cc in comps:
         cc_idx = np.where(components == cc)[0].astype(np.int32)
         nc = len(cc_idx)
-        kcc = max(1,min(k, nc - 1))
-        kdt = NearestNeighbors(n_neighbors=kcc, metric='euclidean', n_jobs=n_jobs, algorithm='kd_tree').fit(X[cc_idx, :])
+        kcc = max(1, min(k, nc))
+        kdt = NearestNeighbors(n_neighbors=kcc, metric='euclidean', n_jobs=n_jobs, algorithm='auto').fit(X[cc_idx, :])
         distances, neighbors = kdt.kneighbors(X[cc_idx, :])
         cc_knn_radius = knn_radius[cc_idx]
-        cc_best_distance = np.empty((nc), dtype=np.float32)
-        cc_big_brother = np.empty((nc), dtype=np.int32)
+        cc_best_distance = np.full(nc, np.nan, dtype=np.float32)
+        cc_big_brother = np.full(nc, -1, dtype=np.int32)
         
         cc_radius_diff = cc_knn_radius[:, np.newaxis] - cc_knn_radius[neighbors]
         rows, cols = np.where(cc_radius_diff > 0)
@@ -139,33 +154,33 @@ def get_density_dists_bb(X, k, components, knn_radius, n_jobs):
                 indx_chunk = np.delete(indx_chunk, max_i)
                 GT_radius = np.delete(GT_radius, max_i, 0)
             
-            GT_distances = ([X[cc_idx[indx_chunk[i]], np.newaxis], X[cc_idx[GT_radius[i, :]], :]] for i in range(len(indx_chunk)))
+            GT_distances = (
+                [X[cc_idx[indx_chunk[i]], np.newaxis], X[cc_idx[GT_radius[i, :]], :]]
+                for i in range(len(indx_chunk))
+            )
             
             if GT_radius.shape[0] > 50:
                 try:
-                    pool = mp.Pool(processes=n_jobs)
                     N = 25
                     distances = []
-                    while True:
-                        distance_comp = pool.map(utils.density_broad_search_star, itertools.islice(GT_distances, N))
-                        if distance_comp:
-                            distances.append(distance_comp)
-                        else:
-                            break
+                    with mp.Pool(processes=n_jobs) as pool:
+                        while True:
+                            distance_comp = pool.map(utils.density_broad_search_star, itertools.islice(GT_distances, N))
+                            if distance_comp:
+                                distances.append(distance_comp)
+                            else:
+                                break
                     distances = [dis_pair for dis_list in distances for dis_pair in dis_list]
                     argmin_distance = [np.argmin(l) for l in distances]
-                    pool.terminate()
                 except Exception as e:
-                    print("POOL ERROR:", e)
-                    pool.close()
-                    pool.terminate()
+                    raise RuntimeError("Parallel density search failed") from e
             else:
                 distances = list(map(utils.density_broad_search_star, list(GT_distances)))
                 argmin_distance = [np.argmin(l) for l in distances]
             
             for i in range(GT_radius.shape[0]):
                 cc_big_brother[indx_chunk[i]] = np.where(GT_radius[i, :] == 1)[0][argmin_distance[i]]
-                cc_best_distance[indx_chunk[i]] = distances[i][argmin_distance[i]]
+                cc_best_distance[indx_chunk[i]] = float(distances[i][argmin_distance[i]])
         
         big_brother[cc_idx] = cc_idx[cc_big_brother.astype(np.int32)]
         best_distance[cc_idx] = cc_best_distance
@@ -192,7 +207,7 @@ def get_y(CCmat, components, knn_radius, best_distance, big_brother, rho, alpha,
     """
     n = components.shape[0]
     y_pred = np.full(n, -1)
-    valid_indices = components != -1
+    valid_indices = np.isfinite(components) & (components != -1)
     peaks = []
     n_cent = 0
     comps = np.unique(components[valid_indices]).astype(int)
@@ -208,7 +223,13 @@ def get_y(CCmat, components, knn_radius, best_distance, big_brother, rho, alpha,
             continue
 
         # Compute `peaked`
-        peaked = np.divide(cc_best_distance, cc_knn_radius, where=cc_knn_radius != 0)
+        peaked = np.full(nc, np.inf, dtype=np.float64)
+        np.divide(
+            cc_best_distance,
+            cc_knn_radius,
+            out=peaked,
+            where=cc_knn_radius != 0,
+        )
         peaked[(cc_best_distance == 0) & (cc_knn_radius == 0)] = np.inf
 
         # Check if `peaked` is empty
@@ -278,7 +299,8 @@ def get_y(CCmat, components, knn_radius, best_distance, big_brother, rho, alpha,
         
         valid_mask = cc_big_brother >= 0
         BBTree = np.column_stack((np.arange(nc)[valid_mask], cc_big_brother[valid_mask]))
-        BBTree[cc_centers, 1] = cc_centers
+        center_rows = np.flatnonzero(np.isin(BBTree[:, 0], cc_centers))
+        BBTree[center_rows, 1] = BBTree[center_rows, 0]
         Clustmat = scipy.sparse.csr_matrix(
             (np.ones(BBTree.shape[0]), (BBTree[:, 0], BBTree[:, 1])), shape=(nc, nc)
         )
@@ -316,6 +338,11 @@ class CPFcluster:
         self.plot_tsne = plot_tsne
         self.clusterings = {}
 
+        if any(value <= 0 for value in self.rho):
+            raise ValueError("All rho values must be greater than 0.")
+        if any(value <= 0 for value in self.alpha):
+            raise ValueError("All alpha values must be greater than 0.")
+
     def fit(self, X, k_values=None):
         """
         Fits the CPF clustering model to the input data and optimizes for multiple parameter combinations.
@@ -329,6 +356,10 @@ class CPFcluster:
         """
         if not isinstance(X, np.ndarray):
             raise ValueError("X must be an n x d numpy array.")
+        if X.ndim != 2 or X.shape[0] == 0 or X.shape[1] == 0:
+            raise ValueError("X must be a non-empty n x d numpy array.")
+        if not np.issubdtype(X.dtype, np.number) or not np.all(np.isfinite(X)):
+            raise ValueError("X must contain only finite numeric values.")
         if self.remove_duplicates:
             X = np.unique(X, axis=0)
         n, d = X.shape
@@ -424,8 +455,11 @@ class CPFcluster:
         best_score = -np.inf
         best_params = None
         for (k, rho, alpha, merge_threshold, density_ratio_threshold), labels in self.clusterings.items():
-            if len(np.unique(labels)) > 1:
-                score = validation_index(X, labels)
+            valid = labels != -1
+            valid_labels = labels[valid]
+            n_labels = len(np.unique(valid_labels))
+            if 1 < n_labels < valid_labels.size:
+                score = validation_index(X[valid], valid_labels)
                 if score > best_score:
                     best_score = score
                     best_params = (k, rho, alpha, merge_threshold, density_ratio_threshold)
